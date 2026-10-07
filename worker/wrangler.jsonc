@@ -3,10 +3,10 @@
   "name": "vocabook-sync",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
-  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "vocabook-data" }],
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "vocabook" }],
   "vars": {
     // Not secret: the same OAuth client ID the app uses. Filled in once it exists.
-    "GOOGLE_CLIENT_ID": "",
+    "GOOGLE_CLIENT_ID": "737864156406-36ck5lqnbul3velvun98to9dfl19k3o4.apps.googleusercontent.com",
     "ALLOWED_ORIGINS": "https://dmrgveli.github.io"
   },
   "observability": { "enabled": true }

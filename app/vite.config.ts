@@ -10,7 +10,7 @@ const CSP = [
   "font-src 'self'",
   "img-src 'self' data: https:",
   "media-src 'self' https:",
-  "connect-src 'self' https://api.dictionaryapi.dev https://api.datamuse.com https://*.workers.dev https://accounts.google.com",
+  "connect-src 'self' https://api.dictionaryapi.dev https://api.datamuse.com https://vocabook-sync.vocabook-sync.workers.dev https://accounts.google.com",
   'frame-src https://youglish.com https://www.youtube.com https://accounts.google.com',
   "base-uri 'self'",
   "form-action 'self'",
