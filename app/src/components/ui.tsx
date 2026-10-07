@@ -10,16 +10,26 @@ export function toneClass(frequency: number | undefined): string {
   return `tone-${kBand(frequency) ?? 'unknown'}`
 }
 
-/** "4K" = among the 4,000 most common words. */
-export function KBadge({ frequency, large }: { frequency?: number; large?: boolean }) {
+/** "4K" = among the 4,000 most common words; hovering or focusing it explains that. */
+export function KBadge({ frequency, large, plain }: { frequency?: number; large?: boolean; plain?: boolean }) {
   const k = frequencyK(frequency)
   if (k === undefined || frequency === undefined) return null
+  const description = describeK(k)
+  if (plain)
+    return (
+      <span className={`k-badge ${toneClass(frequency)}`} title={description}>
+        {formatK(k)}
+      </span>
+    )
   return (
-    <span
-      className={`k-badge ${toneClass(frequency)} ${large ? 'k-badge-lg' : ''}`}
-      title={`${describeK(k)} · ${formatFrequency(frequency)}`}
-    >
-      {formatK(k)}
+    <span className={`tip ${large ? 'tip-below' : ''}`} tabIndex={0} aria-label={`${formatK(k)}: ${description}`}>
+      <span className={`k-badge ${toneClass(frequency)} ${large ? 'k-badge-lg' : ''}`} aria-hidden>
+        {formatK(k)}
+      </span>
+      <span className="tip-bubble" role="tooltip">
+        <strong>{description}</strong>
+        <span>{formatFrequency(frequency)}</span>
+      </span>
     </span>
   )
 }

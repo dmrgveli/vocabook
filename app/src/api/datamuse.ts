@@ -1,4 +1,4 @@
-import type { Meaning } from '../data/model'
+import type { Collocation, Meaning } from '../data/model'
 import { getJson } from './http'
 
 // Datamuse: autocomplete, frequency, collocations, synonyms and backup definitions.
@@ -85,11 +85,11 @@ export async function wordInfo(word: string): Promise<WordInfo> {
   return { frequency: parseFrequency(w), ipa: ipa ? `/${ipa.trim()}/` : undefined, meanings: parseDefinitions(w.defs) }
 }
 
-async function related(rel: string, word: string, keep: (w: string) => boolean, max: number): Promise<string[]> {
+async function related(rel: string, word: string, keep: (w: string) => boolean, max: number): Promise<Collocation[]> {
   const words = await getJson<DatamuseWord[]>(`${BASE}/words?${rel}=${encodeURIComponent(word)}&max=60`)
   return words
-    .map((w) => w.word.toLowerCase())
-    .filter((w) => isWord(w) && w !== word && keep(w))
+    .map((w) => ({ word: w.word.toLowerCase(), score: w.score }))
+    .filter((c) => isWord(c.word) && c.word !== word && keep(c.word))
     .slice(0, max)
 }
 
@@ -122,42 +122,29 @@ function keepFollower(maxPrepositions = 4) {
   return (w: string) => meaningful(w) || (PREPOSITIONS.has(w) && w !== 'of' && ++prepositions <= maxPrepositions)
 }
 
-export interface Collocations {
-  /** "plants thrive" */
-  before: string[]
-  /** "thrive on", "decision making" */
-  after: string[]
-  /** Adjectives often used with this noun: "final decision" */
-  adjectives: string[]
-  /** Nouns this adjective often describes: "meticulous care" */
-  nouns: string[]
-}
+// For the bigram relations Datamuse's score tracks how often the pair occurs
+// (rely on ≈ 643k, rely upon ≈ 125k), so it works as a relative frequency.
+// Results arrive sorted by it, most frequent first.
 
-async function partsOfSpeech(word: string): Promise<string[]> {
-  const [w] = await getJson<DatamuseWord[]>(`${BASE}/words?sp=${encodeURIComponent(word)}&md=p&max=1`)
-  return w?.word.toLowerCase() === word ? (w.tags ?? []) : []
+export interface Collocations {
+  /** "plants thrive": the word comes after these */
+  before: Collocation[]
+  /** "thrive on": the word comes before these */
+  after: Collocation[]
 }
 
 export async function collocations(word: string): Promise<Collocations> {
-  // Adjective/noun pairs only make sense for nouns and adjectives; for other words
-  // Datamuse returns fragments of idioms ("failure to thrive" → "thrive children").
-  const pos = await partsOfSpeech(word).catch((): string[] => [])
-  const none = Promise.resolve<string[]>([])
-  const [before, after, adjectives, nouns] = await Promise.all([
-    related('rel_bgb', word, meaningful, 10),
-    related('rel_bga', word, keepFollower(), 10),
-    pos.includes('n') ? related('rel_jjb', word, meaningful, 12) : none,
-    pos.includes('adj') ? related('rel_jja', word, meaningful, 12) : none,
+  const [before, after] = await Promise.all([
+    related('rel_bgb', word, meaningful, 8),
+    related('rel_bga', word, keepFollower(), 8),
   ])
-  // A pair already shown as "adjective + noun" doesn't need repeating as a plain neighbour.
-  const shown = new Set(adjectives)
-  return { before: before.filter((w) => !shown.has(w)), after, adjectives, nouns }
+  return { before, after }
 }
 
 export async function synonyms(word: string): Promise<{ synonyms: string[]; antonyms: string[] }> {
   const [syn, ant] = await Promise.all([
-    related('rel_syn', word, () => true, 12),
-    related('rel_ant', word, () => true, 8),
+    related('rel_syn', word, () => true, 8),
+    related('rel_ant', word, () => true, 6),
   ])
-  return { synonyms: syn, antonyms: ant }
+  return { synonyms: syn.map((c) => c.word), antonyms: ant.map((c) => c.word) }
 }

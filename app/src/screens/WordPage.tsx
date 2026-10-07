@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowLeft, CloudOff, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ChevronUp, CloudOff, Play, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { enrichEntry, isEnriching } from '../api/enrich'
@@ -9,8 +9,7 @@ import { SourceInput } from '../components/SourceInput'
 import { KBadge, MasteryControl, RecordingButton, SpeakButton } from '../components/ui'
 import { YouGlishPanel } from '../components/YouGlishPanel'
 import { deleteEntry, markViewed, updateEntry } from '../data/db'
-import { describeK, frequencyK } from '../data/frequency'
-import { alive, createEncounter, createNote, now, type Enrichment, type Entry } from '../data/model'
+import { alive, createEncounter, createNote, isEnrichmentCurrent, now, type Collocation, type Enrichment, type Entry } from '../data/model'
 import { allSources } from '../data/notebook'
 import { useEntries, useEntry } from '../hooks'
 import { speak } from '../speech'
@@ -53,6 +52,7 @@ function WordPageContent({ entry }: { entry: Entry }) {
   const { toast } = useAppState()
   const update: Update = (change) => updateEntry(entry.id, change)
   const e = entry.enrichment
+  const [videosOpen, setVideosOpen] = useState(false)
 
   async function remove() {
     if (!confirm(`Remove “${entry.word}” from your notebook?`)) return
@@ -77,11 +77,22 @@ function WordPageContent({ entry }: { entry: Entry }) {
               {entry.word}
             </h1>
             <motion.span
+              className="title-badges"
               initial={{ scale: 0.4, rotate: -20, opacity: 0 }}
               animate={{ scale: 1, rotate: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 400, damping: 14, delay: 0.15 }}
             >
               <KBadge frequency={entry.frequency} large />
+              <button
+                type="button"
+                className="video-badge"
+                aria-expanded={videosOpen}
+                aria-controls="word-videos"
+                onClick={() => setVideosOpen((o) => !o)}
+              >
+                {videosOpen ? <ChevronUp size={15} strokeWidth={2.5} /> : <Play size={14} strokeWidth={2.5} fill="currentColor" />}
+                {videosOpen ? 'Hide videos' : 'Hear it used'}
+              </button>
             </motion.span>
           </motion.div>
           <div className="row word-meta">
@@ -89,7 +100,6 @@ function WordPageContent({ entry }: { entry: Entry }) {
             <SpeakButton text={entry.word} size="lg" slow />
             {e?.audioUrl && <RecordingButton url={e.audioUrl} word={entry.word} />}
             {e?.phonetic && <span className="phonetic-lg">{e.phonetic}</span>}
-            {frequencyK(entry.frequency) !== undefined && <span className="faint">{describeK(frequencyK(entry.frequency)!)}</span>}
           </div>
         </div>
         <div className="word-hero-side">
@@ -98,6 +108,24 @@ function WordPageContent({ entry }: { entry: Entry }) {
           <span className="faint">Added {formatDate(entry.createdAt)}</span>
         </div>
       </header>
+
+      <AnimatePresence initial={false}>
+        {videosOpen && (
+          <motion.section
+            id="word-videos"
+            className="videos-drawer"
+            aria-label={`“${entry.word}” in real videos`}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="videos-inner box">
+              <YouGlishPanel word={entry.word} />
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       <div className="word-columns">
         <div className="word-col">
@@ -128,8 +156,7 @@ function WordPageContent({ entry }: { entry: Entry }) {
           </Panel>
 
           <Encounters entry={entry} update={update} />
-          <MarginNotes notes={alive(entry.notes)} update={update} />
-          <Tags tags={entry.tags} update={update} />
+          <Notes notes={alive(entry.notes)} update={update} />
 
           <button className="btn btn-quiet btn-danger remove-btn" onClick={remove}>
             <Trash2 size={15} /> Remove from notebook
@@ -172,9 +199,9 @@ function Dictionary({ entry }: { entry: Entry }) {
   }
 
   // Words added while offline get their dictionary data the first time they are opened;
-  // data saved before the collocation filter existed (no `adjectives`) is refreshed too.
+  // data stored in an older layout is refreshed the same way.
   useEffect(() => {
-    if (!entry.enrichment || !entry.enrichment.collocations.adjectives) fetchNow()
+    if (!isEnrichmentCurrent(entry.enrichment)) fetchNow()
   }, [entry.id])
 
   const refresh = (
@@ -217,10 +244,6 @@ function Dictionary({ entry }: { entry: Entry }) {
           <Collocations word={entry.word} collocations={e.collocations} />
         </Panel>
       )}
-
-      <Panel title="Hear it in real videos" delay={0.08}>
-        <YouGlishPanel word={entry.word} />
-      </Panel>
 
       {(e.synonyms.length > 0 || e.antonyms.length > 0) && (
         <Panel title="Related words" delay={0.1}>
@@ -276,34 +299,58 @@ function DefinitionSkeleton() {
 
 type CollocationSet = Enrichment['collocations']
 
+/** Entries fetched before scores existed stored plain strings. */
+const asCollocation = (c: Collocation | string): Collocation => (typeof c === 'string' ? { word: c } : c)
+
 function hasCollocations(c: CollocationSet): boolean {
-  return c.before.length + c.after.length + (c.adjectives?.length ?? 0) + (c.nouns?.length ?? 0) > 0
+  return c.before.length + c.after.length > 0
 }
 
-/** Phrases built from Datamuse's most frequent neighbours; each one can be read aloud. */
+/**
+ * The most frequent neighbours on each side, most common first. The bar shows how often
+ * each pair occurs compared with the most frequent pair in its column (Datamuse scores).
+ */
 function Collocations({ word, collocations: c }: { word: string; collocations: CollocationSet }) {
-  const groups: { label: string; phrases: [string, string][] }[] = [
-    { label: 'Described as', phrases: (c.adjectives ?? []).map((w) => [w, word]) },
-    { label: 'Describes', phrases: (c.nouns ?? []).map((w) => [word, w]) },
-    { label: 'Comes after', phrases: c.before.map((w) => [w, word]) },
-    { label: 'Followed by', phrases: c.after.map((w) => [word, w]) },
-  ]
+  const columns = [
+    { label: 'Comes after', hint: `Words that often come right before “${word}”`, items: c.before.map(asCollocation), phrase: (w: string) => [w, word] },
+    { label: 'Comes before', hint: `Words that often come right after “${word}”`, items: c.after.map(asCollocation), phrase: (w: string) => [word, w] },
+  ].filter((col) => col.items.length > 0)
+
   return (
     <div className="collocations">
-      {groups
-        .filter((g) => g.phrases.length > 0)
-        .map((g) => (
-          <div key={g.label}>
-            <span className="faint coll-label">{g.label}</span>
-            <div className="row" style={{ gap: 6 }}>
-              {g.phrases.map(([a, b]) => (
-                <button key={`${a} ${b}`} type="button" className="coll" lang="en" onClick={() => speak(`${a} ${b}`)} title="Say it">
-                  {a === word ? <b>{a}</b> : <span>{a}</span>} {b === word ? <b>{b}</b> : <span>{b}</span>}
-                </button>
-              ))}
-            </div>
+      {columns.map((col) => {
+        const top = Math.max(...col.items.map((i) => i.score ?? 0))
+        return (
+          <div key={col.label} className="coll-column">
+            <span className="faint coll-label" title={col.hint}>
+              {col.label}
+            </span>
+            <ol className="coll-list">
+              {col.items.map((item) => {
+                const [a, b] = col.phrase(item.word)
+                const share = top && item.score ? item.score / top : undefined
+                return (
+                  <li key={item.word}>
+                    <button type="button" className="coll-row" lang="en" onClick={() => speak(`${a} ${b}`)} title={`Say “${a} ${b}”`}>
+                      <span className="coll-phrase">
+                        {a === word ? <b>{a}</b> : <span>{a}</span>} {b === word ? <b>{b}</b> : <span>{b}</span>}
+                      </span>
+                      {share !== undefined && (
+                        <span
+                          className="coll-bar"
+                          title={share === 1 ? 'The most frequent pair' : `About ${Math.max(1, Math.round(share * 100))}% as frequent as the top pair`}
+                        >
+                          <span style={{ width: `${Math.max(4, share * 100)}%` }} />
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                )
+              })}
+            </ol>
           </div>
-        ))}
+        )
+      })}
     </div>
   )
 }
@@ -437,8 +484,10 @@ function Highlighted({ text, word }: { text: string; word: string }) {
   return <>{parts.map((p, i) => (i % 2 === 1 ? <mark key={i}>{p}</mark> : p))}</>
 }
 
-function MarginNotes({ notes, update }: { notes: Entry['notes']; update: Update }) {
+/** Short personal notes: associations, look-alikes, reminders. Hidden behind a button until used. */
+function Notes({ notes, update }: { notes: Entry['notes']; update: Update }) {
   const [draft, setDraft] = useState('')
+  const [open, setOpen] = useState(false)
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
@@ -451,8 +500,15 @@ function MarginNotes({ notes, update }: { notes: Entry['notes']; update: Update 
   const remove = (id: string) =>
     update((x) => ({ ...x, notes: x.notes.map((n) => (n.id === id ? { ...n, deletedAt: now(), updatedAt: now() } : n)) }))
 
+  if (notes.length === 0 && !open)
+    return (
+      <button className="btn add-note" onClick={() => setOpen(true)}>
+        <Plus size={15} /> Add a note
+      </button>
+    )
+
   return (
-    <Panel title="Margin notes" delay={0.2}>
+    <Panel title="Notes" delay={0.05}>
       <AnimatePresence initial={false}>
         {notes.map((n) => (
           <motion.p
@@ -473,53 +529,12 @@ function MarginNotes({ notes, update }: { notes: Entry['notes']; update: Update 
       <form onSubmit={add}>
         <input
           className="field"
-          placeholder="An association, a similar word, a reminder…"
-          aria-label="New margin note"
+          placeholder="An association, a look-alike word, a reminder…"
+          aria-label="New note"
+          autoFocus={notes.length === 0}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-        />
-      </form>
-    </Panel>
-  )
-}
-
-function Tags({ tags, update }: { tags: string[]; update: Update }) {
-  const [draft, setDraft] = useState('')
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault()
-    const tag = draft.trim().toLowerCase().replace(/^#/, '').replace(/\s+/g, '-')
-    if (!tag || tags.includes(tag)) return setDraft('')
-    await update((x) => ({ ...x, tags: [...x.tags, tag] }))
-    setDraft('')
-  }
-
-  return (
-    <Panel title="Tags" delay={0.25}>
-      <form className="row" onSubmit={add} style={{ gap: 6 }}>
-        <AnimatePresence initial={false}>
-          {tags.map((t) => (
-            <motion.button
-              key={t}
-              layout
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              type="button"
-              className="chip"
-              aria-label={`Remove tag ${t}`}
-              onClick={() => update((x) => ({ ...x, tags: x.tags.filter((y) => y !== t) }))}
-            >
-              #{t} <X size={12} />
-            </motion.button>
-          ))}
-        </AnimatePresence>
-        <input
-          className="field tag-input"
-          placeholder="+ add tag"
-          aria-label="New tag"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => !draft.trim() && notes.length === 0 && setOpen(false)}
         />
       </form>
     </Panel>

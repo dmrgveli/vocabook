@@ -1,16 +1,17 @@
 import { motion } from 'motion/react'
-import { BookA, Cloud, Database, ExternalLink, RefreshCw, Volume2, Clapperboard } from 'lucide-react'
+import { BellRing, BookA, Clapperboard, Cloud, Database, ExternalLink, RefreshCw, Volume2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { enrichEntry } from '../api/enrich'
 import { useAppState } from '../app/state'
 import { AccountCard } from '../components/AccountCard'
-import type { Entry } from '../data/model'
+import { isEnrichmentCurrent, type Entry } from '../data/model'
+import { REMINDER_MIN_WORDS, setRemindersEnabled, useRemindersEnabled } from '../data/reminders'
 import { canSpeak, setSpeechPrefs, speak, useEnglishVoices, useSpeechPrefs } from '../speech'
 import { GOOGLE_PRIVACY_URL, setYouGlishConsent, useYouGlishConsent, YOUTUBE_TERMS_URL } from '../youglish'
 
 export function Settings({ entries }: { entries: Entry[] }) {
   const { toast } = useAppState()
-  const missing = entries.filter((e) => !e.enrichment || e.enrichment.definitionsFrom !== 'free-dictionary' || !e.enrichment.collocations.adjectives)
+  const missing = entries.filter((e) => !isEnrichmentCurrent(e.enrichment) || e.enrichment.definitionsFrom !== 'free-dictionary')
   const [refreshing, setRefreshing] = useState(false)
 
   async function refetch() {
@@ -38,11 +39,15 @@ export function Settings({ entries }: { entries: Entry[] }) {
           <PronunciationSettings />
         </Card>
 
-        <Card icon={<Clapperboard size={18} />} title="Real-world videos" index={2}>
+        <Card icon={<BellRing size={18} />} title="Reminders" index={2}>
+          <ReminderSettings />
+        </Card>
+
+        <Card icon={<Clapperboard size={18} />} title="Real-world videos" index={3}>
           <YouGlishSettings />
         </Card>
 
-        <Card icon={<Database size={18} />} title="Storage" index={3}>
+        <Card icon={<Database size={18} />} title="Storage" index={4}>
           <p className="muted">
             {entries.length} {entries.length === 1 ? 'word' : 'words'} saved on this device. Dictionary data is copied into each
             word, so your notebook keeps working offline. It is not synced: each computer fetches its own.
@@ -56,7 +61,7 @@ export function Settings({ entries }: { entries: Entry[] }) {
         </Card>
 
 
-        <Card icon={<BookA size={18} />} title="Data sources" index={4}>
+        <Card icon={<BookA size={18} />} title="Data sources" index={5}>
           <ul className="sources">
             <SourceLink href="https://dictionaryapi.dev/" name="Free Dictionary API" what="Definitions, examples, recordings, origin" />
             <SourceLink href="https://www.datamuse.com/api/" name="Datamuse" what="Suggestions, frequency, collocations, related words" />
@@ -115,6 +120,22 @@ function PronunciationSettings() {
       <button className="btn" onClick={() => speak('The quick brown fox jumps over the lazy dog.')}>
         <Volume2 size={15} /> Test
       </button>
+    </>
+  )
+}
+
+function ReminderSettings() {
+  const enabled = useRemindersEnabled()
+  return (
+    <>
+      <p className="muted">
+        Once your notebook has {REMINDER_MIN_WORDS} words, opening the app shows a few you haven't looked at in a while. Close it
+        any time; nothing is scored.
+      </p>
+      <label className="row toggle">
+        <input type="checkbox" checked={enabled} onChange={(e) => setRemindersEnabled(e.target.checked)} />
+        Show “A page from your notebook” when I open the app
+      </label>
     </>
   )
 }

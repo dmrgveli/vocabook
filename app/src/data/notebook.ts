@@ -6,13 +6,12 @@ export interface Filters {
   band?: KBand
   mastery?: Mastery
   source?: string
-  tag?: string
 }
 
 export const EMPTY_FILTERS: Filters = { query: '' }
 
 export function hasActiveFilters(f: Filters): boolean {
-  return Boolean(f.query.trim() || f.band || f.mastery || f.source || f.tag)
+  return Boolean(f.query.trim() || f.band || f.mastery || f.source)
 }
 
 function matchesQuery(entry: Entry, q: string, qTr: string): boolean {
@@ -20,7 +19,6 @@ function matchesQuery(entry: Entry, q: string, qTr: string): boolean {
   // The translation is in the user's native language (Turkish): compare with Turkish casing rules.
   if (entry.translation?.toLocaleLowerCase('tr').includes(qTr)) return true
   if (entry.ownSentence?.toLowerCase().includes(q)) return true
-  if (entry.tags.some((t) => t.includes(q))) return true
   return alive(entry.notes).some((n) => n.text.toLowerCase().includes(q) || n.text.toLocaleLowerCase('tr').includes(qTr))
 }
 
@@ -32,8 +30,7 @@ export function filterEntries(entries: Entry[], f: Filters): Entry[] {
       (!q || matchesQuery(e, q, qTr)) &&
       (!f.band || kBand(e.frequency) === f.band) &&
       (!f.mastery || e.mastery === f.mastery) &&
-      (!f.source || alive(e.encounters).some((enc) => enc.source === f.source)) &&
-      (!f.tag || e.tags.includes(f.tag)),
+      (!f.source || alive(e.encounters).some((enc) => enc.source === f.source)),
   )
 }
 
@@ -72,12 +69,6 @@ export function allSources(entries: Entry[]): { source: string; count: number }[
   return [...stats]
     .sort((a, b) => b[1].latest.localeCompare(a[1].latest))
     .map(([source, s]) => ({ source, count: s.words.size }))
-}
-
-export function allTags(entries: Entry[]): { tag: string; count: number }[] {
-  const counts = new Map<string, number>()
-  for (const t of entries.flatMap((e) => e.tags)) counts.set(t, (counts.get(t) ?? 0) + 1)
-  return [...counts].sort((a, b) => a[0].localeCompare(b[0])).map(([tag, count]) => ({ tag, count }))
 }
 
 export function entrySource(entry: Entry): string | undefined {

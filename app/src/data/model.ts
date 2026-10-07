@@ -55,8 +55,22 @@ export interface Enrichment {
   synonyms: string[]
   antonyms: string[]
   origin?: string
-  /** Words most often used with this one (Datamuse). adjectives/nouns are missing on entries fetched before Oct 2026. */
-  collocations: { before: string[]; after: string[]; adjectives?: string[]; nouns?: string[] }
+  /** Words most often used right before / after this one (Datamuse), most frequent first. */
+  collocations: { before: Collocation[]; after: Collocation[] }
+  /** Layout of this object; older versions are fetched again when the word is opened. */
+  version?: number
+}
+
+/** A neighbouring word; `score` is Datamuse's relative frequency for the pair. */
+export interface Collocation {
+  word: string
+  score?: number
+}
+
+export const ENRICHMENT_VERSION = 2
+
+export function isEnrichmentCurrent(e: Enrichment | undefined): e is Enrichment {
+  return (e?.version ?? 1) >= ENRICHMENT_VERSION
 }
 
 export interface Entry extends Syncable {

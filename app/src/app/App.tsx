@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useEffect } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { QuickAddDialog } from '../components/QuickAddDialog'
+import { ReminderPopup } from '../components/ReminderPopup'
 import { Sidebar } from '../components/Sidebar'
 import { Toaster } from '../components/Toaster'
 import { useEntries } from '../hooks'
@@ -52,6 +53,7 @@ export function App() {
         </main>
       </div>
       <QuickAddDialog />
+      <ReminderPopup entries={entries} />
       <Toaster />
     </>
   )

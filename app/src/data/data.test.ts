@@ -3,7 +3,7 @@ import { parseDefinitions, parseFrequency } from '../api/datamuse'
 import { parseDictionary, type FDEntry } from '../api/dictionary'
 import { estimateRank, formatK, frequencyK, kBand, MAX_K } from './frequency'
 import { createEncounter, createEntry, createNote, firstEncounter, now } from './model'
-import { allSources, allTags, filterEntries, groupByDay, localDay } from './notebook'
+import { allSources, filterEntries, groupByDay, localDay } from './notebook'
 
 describe('frequency ranks', () => {
   it('estimates the thousand a word falls in', () => {
@@ -93,11 +93,10 @@ describe('notebook', () => {
     expect(a.mastery).toBe('recognize')
   })
 
-  it('filters by query, frequency band, source and tag', () => {
+  it('filters by query, frequency band and source', () => {
     expect(filterEntries([a, b], { query: 'kavra' })).toEqual([a])
     expect(filterEntries([a, b], { query: '', band: 'k20' })).toEqual([b])
     expect(filterEntries([a, b], { query: '', source: 'Book' })).toEqual([a])
-    expect(filterEntries([a, b], { query: '', tag: 'work' })).toEqual([b])
   })
 
   it('ignores deleted notes in search', () => {
@@ -110,11 +109,10 @@ describe('notebook', () => {
     expect(groups.map((g) => g.day)).toEqual([localDay(b.createdAt), localDay(old.createdAt)])
   })
 
-  it('lists sources and tags with counts', () => {
+  it('lists sources with counts', () => {
     const later = { ...createEncounter({ source: 'Podcast', date: '2030-01-01' }), createdAt: '2999-01-01T00:00:00Z' }
     const c = { ...a, encounters: [...a.encounters, later] }
     expect(allSources([c, b])[0]).toEqual({ source: 'Podcast', count: 1 })
-    expect(allTags([a, b])).toEqual([{ tag: 'work', count: 1 }])
     expect(firstEncounter(c)?.source).toBe('Book')
   })
 })

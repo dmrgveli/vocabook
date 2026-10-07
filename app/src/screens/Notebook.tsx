@@ -46,7 +46,6 @@ export function Notebook({ entries }: { entries: Entry[] }) {
     filters.band && { key: 'band', label: K_BANDS.find((b) => b.id === filters.band)!.label },
     filters.mastery && { key: 'mastery', label: MASTERY_LABELS[filters.mastery] },
     filters.source && { key: 'source', label: filters.source },
-    filters.tag && { key: 'tag', label: `#${filters.tag}` },
   ].filter(Boolean) as { key: keyof typeof filters; label: string }[]
 
   return (

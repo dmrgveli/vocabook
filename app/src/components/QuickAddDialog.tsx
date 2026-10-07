@@ -178,7 +178,7 @@ function QuickAddForm({ onDone }: { onDone: () => void }) {
                   <span className="word-font option-word" lang="en">
                     {s.word}
                   </span>
-                  {s.frequency === undefined ? <span className="faint">Add as typed</span> : <KBadge frequency={s.frequency} />}
+                  {s.frequency === undefined ? <span className="faint">Add as typed</span> : <KBadge frequency={s.frequency} plain />}
                   {i === highlight && <CornerDownLeft size={14} className="faint" />}
                 </button>
               </li>

@@ -6,7 +6,7 @@ import { useAppState } from '../app/state'
 import { K_BANDS, kBand } from '../data/frequency'
 import { MASTERY_LABELS, MASTERY_LEVELS, type Entry } from '../data/model'
 import { SyncStatusLine } from './SyncStatus'
-import { allSources, allTags, type Filters } from '../data/notebook'
+import { allSources, type Filters } from '../data/notebook'
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 export const MOD_KEY = isMac ? '⌘' : 'Ctrl'
@@ -27,7 +27,6 @@ export function Sidebar({ entries }: { entries: Entry[] }) {
     return { band, mastery }
   }, [entries])
   const sources = useMemo(() => allSources(entries).slice(0, 8), [entries])
-  const tags = useMemo(() => allTags(entries), [entries])
 
   // Picking a filter anywhere takes you to the notebook.
   const toggle = <K extends keyof Filters>(key: K, value: Filters[K]) => {
@@ -87,13 +86,6 @@ export function Sidebar({ entries }: { entries: Entry[] }) {
             </FilterGroup>
           )}
 
-          {tags.length > 0 && (
-            <FilterGroup title="Tags">
-              {tags.map(({ tag, count }) => (
-                <FilterItem key={tag} active={filters.tag === tag} onClick={() => toggle('tag', tag)} label={`#${tag}`} count={count} />
-              ))}
-            </FilterGroup>
-          )}
         </div>
       )}
 

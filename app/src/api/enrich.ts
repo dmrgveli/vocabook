@@ -1,5 +1,5 @@
 import { getEntry, updateEntry } from '../data/db'
-import { now, type Enrichment } from '../data/model'
+import { ENRICHMENT_VERSION, now, type Enrichment } from '../data/model'
 import * as datamuse from './datamuse'
 import { lookupWord, type DictionaryResult } from './dictionary'
 
@@ -34,7 +34,8 @@ export async function fetchEnrichment(word: string): Promise<{ enrichment: Enric
       meanings,
       synonyms: merge(d?.synonyms, rel.ok ? rel.value.synonyms : []).slice(0, 14),
       antonyms: merge(d?.antonyms, rel.ok ? rel.value.antonyms : []).slice(0, 8),
-      collocations: coll.ok ? coll.value : { before: [], after: [], adjectives: [], nouns: [] },
+      collocations: coll.ok ? coll.value : { before: [], after: [] },
+      version: ENRICHMENT_VERSION,
     },
   }
 }
