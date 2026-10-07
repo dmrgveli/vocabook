@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { MobileAddButton, MobileBar } from '../components/MobileBar'
+import { ProfileDialog } from '../components/ProfileDialog'
 import { QuickAddDialog } from '../components/QuickAddDialog'
 import { ReminderPopup } from '../components/ReminderPopup'
 import { Sidebar } from '../components/Sidebar'
@@ -55,7 +56,8 @@ export function App() {
           {entries && (
             <AnimatePresence mode="wait">
               <motion.div
-                key={location.pathname}
+                // Settings sections switch inside the page, without a page transition.
+                key={location.pathname.startsWith('/settings') ? '/settings' : location.pathname}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
@@ -67,7 +69,7 @@ export function App() {
                 >
                   <Routes location={location}>
                     <Route path="/word/:param" element={<WordPage />} />
-                    <Route path="/settings" element={<Settings entries={entries} />} />
+                    <Route path="/settings/:section?" element={<Settings entries={entries} />} />
                     <Route path="*" element={<Notebook entries={entries} />} />
                   </Routes>
                 </ErrorBoundary>
@@ -80,6 +82,7 @@ export function App() {
       <QuickAddDialog />
       <ReminderPopup entries={entries} />
       <WordPeek />
+      <ProfileDialog entries={entries ?? []} />
       <Toaster />
     </>
   )

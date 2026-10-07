@@ -277,10 +277,6 @@
     padding: 16px;
   }
 
-  .collocations {
-    grid-template-columns: 1fr;
-  }
-
   .videos-inner {
     margin-top: 14px;
     padding: 12px;
@@ -301,12 +297,6 @@
   .tip-below:focus-visible .tip-bubble,
   .tip-below:focus-within .tip-bubble {
     transform: none;
-  }
-
-  /* ---------- settings ---------- */
-
-  .settings-grid {
-    grid-template-columns: 1fr;
   }
 
   /* ---------- dialogs ---------- */
@@ -362,6 +352,139 @@
   .reminder-source {
     margin-left: 0;
     flex-basis: 100%;
+  }
+
+  /* ---------- top bar extras ---------- */
+
+  .mobile-bar-end {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .profile-chip {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+  }
+
+  .profile-chip .avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* ---------- notebook: sort & group ---------- */
+
+  .view-controls {
+    width: 100%;
+  }
+
+  .select-chip {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+  }
+
+  .select-chip select {
+    width: 100%;
+    font-size: 16px;
+  }
+
+  /* ---------- word map ---------- */
+
+  .kwic-map {
+    gap: 2px 8px;
+  }
+
+  .kwic-center {
+    font-size: 22px;
+    padding: 3px 10px;
+  }
+
+  .kwic-word {
+    font-size: calc(14px + var(--share) * 5px);
+    padding: 1px 3px;
+  }
+
+  .kwic-before li::after,
+  .kwic-after li::before {
+    width: 6px;
+  }
+
+  /* ---------- settings ---------- */
+
+  .settings-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .settings-nav {
+    position: sticky;
+    top: calc(56px + env(safe-area-inset-top));
+    z-index: 4;
+    flex-direction: row;
+    gap: 6px;
+    margin: 0 -16px;
+    padding: 8px 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: var(--paper);
+  }
+
+  .settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-tab {
+    flex: none;
+    height: 36px;
+    border-color: var(--line-soft);
+  }
+
+  .settings-tab.active {
+    box-shadow: none;
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .settings-panel {
+    padding: 16px;
+  }
+
+  .setting {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .setting-control {
+    justify-content: flex-start;
+  }
+
+  .creator {
+    flex-wrap: wrap;
+  }
+
+  /* ---------- profile ---------- */
+
+  .profile {
+    width: 100%;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top));
+    padding: 18px 16px 12px;
+  }
+
+  .profile-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .badges {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 

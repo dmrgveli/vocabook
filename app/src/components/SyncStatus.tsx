@@ -1,8 +1,10 @@
-import { AlertTriangle, Check, CloudOff, HardDrive, LogIn, RefreshCw } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useAuth } from '../sync/auth'
-import { useSyncStatus } from '../sync/engine'
+import { AlertTriangle, Check, CloudOff, HardDrive, LogIn, RefreshCw, Settings } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { NavLink } from 'react-router-dom'
+import { useAppState } from '../app/state'
+import { renderSignInButton, useAuth, type AuthState } from '../sync/auth'
+import { useSyncStatus, type SyncStatus } from '../sync/engine'
+import { useResolvedTheme } from '../theme'
 
 export function timeAgo(ms: number): string {
   const s = Math.round((Date.now() - ms) / 1000)
@@ -21,64 +23,93 @@ function useTick() {
   }, [])
 }
 
-/** One-line sync state for the sidebar; links to Settings where the controls are. */
-export function SyncStatusLine() {
-  const auth = useAuth()
-  const sync = useSyncStatus()
-  useTick()
-
-  let icon = <HardDrive size={14} />
-  let text = 'Saved on this device'
-  let tone = ''
-
-  if (auth.status === 'signed-out') {
-    icon = <LogIn size={14} />
-    text = 'Sign in to sync'
-  } else if (auth.status === 'expired') {
-    icon = <LogIn size={14} />
-    text = 'Sign in again to sync'
-    tone = 'warn'
-  } else if (auth.status === 'signed-in') {
-    switch (sync.state) {
-      case 'syncing':
-        icon = <RefreshCw size={14} className="spin" />
-        text = 'Syncing…'
-        break
-      case 'synced':
-        icon = <Check size={14} />
-        text = `Synced ${timeAgo(sync.lastSynced)}`
-        tone = 'ok'
-        break
-      case 'offline':
-        icon = <CloudOff size={14} />
-        text = 'Offline · will sync later'
-        break
-      case 'error':
-        icon = <AlertTriangle size={14} />
-        text = 'Sync problem'
-        tone = 'warn'
-        break
-      case 'account-changed':
-        icon = <AlertTriangle size={14} />
-        text = 'Sync paused · action needed'
-        tone = 'warn'
-        break
-      default:
-        icon = <RefreshCw size={14} />
-        text = 'Connecting…'
-    }
+function describe(auth: AuthState, sync: SyncStatus): { icon: ReactNode; text: string; tone?: 'ok' | 'warn' } {
+  if (auth.status === 'unconfigured' || auth.status === 'signed-out' || auth.status === 'loading')
+    return { icon: <HardDrive size={13} />, text: 'Saved on this device' }
+  if (auth.status === 'expired') return { icon: <LogIn size={13} />, text: 'Signed out · sign in to sync', tone: 'warn' }
+  switch (sync.state) {
+    case 'syncing':
+      return { icon: <RefreshCw size={13} className="spin" />, text: 'Syncing…' }
+    case 'synced':
+      return { icon: <Check size={13} />, text: `Synced ${timeAgo(sync.lastSynced)}`, tone: 'ok' }
+    case 'offline':
+      return { icon: <CloudOff size={13} />, text: 'Offline · will sync later' }
+    case 'error':
+      return { icon: <AlertTriangle size={13} />, text: 'Sync problem', tone: 'warn' }
+    case 'account-changed':
+      return { icon: <AlertTriangle size={13} />, text: 'Sync paused · action needed', tone: 'warn' }
+    default:
+      return { icon: <RefreshCw size={13} />, text: 'Connecting…' }
   }
+}
 
-  const title = auth.status === 'signed-in' ? `Signed in as ${auth.user.email ?? auth.user.name}` : undefined
-  if (auth.status === 'unconfigured')
-    return (
-      <div className="sync-status" title="Sign-in and sync are not set up for this copy of the app.">
-        {icon} {text}
-      </div>
-    )
+/** The sync state as a short line of text with an icon. */
+export function SyncStatusText() {
+  const info = describe(useAuth(), useSyncStatus())
+  useTick()
   return (
-    <Link to="/settings" className="sync-status sync-link" data-tone={tone} title={title}>
-      {icon} {text}
-    </Link>
+    <span className="sync-text" data-tone={info.tone}>
+      {info.icon} {info.text}
+    </span>
+  )
+}
+
+/** Google's own sign-in button: one click opens Google's sign-in, no detour through Settings. */
+export function GoogleSignInButton({ width }: { width?: number }) {
+  const el = useRef<HTMLDivElement>(null)
+  const theme = useResolvedTheme()
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    if (!el.current) return
+    el.current.innerHTML = '' // re-draw when the theme changes
+    renderSignInButton(el.current, width).catch(() => setFailed(true))
+  }, [theme, width])
+  if (failed) return <p className="faint small">Google sign-in can't be reached right now.</p>
+  return <div ref={el} className="google-button" />
+}
+
+/**
+ * Bottom of the sidebar: who you are (or a sign-in button), the sync state and the
+ * way into Settings.
+ */
+export function SidebarAccount({ onNavigate }: { onNavigate?: () => void }) {
+  const auth = useAuth()
+  const { setProfileOpen } = useAppState()
+  const signedIn = auth.status === 'signed-in' || auth.status === 'expired'
+
+  const settings = (
+    <NavLink to="/settings" className="icon-btn settings-link" aria-label="Settings" title="Settings" onClick={onNavigate}>
+      <Settings size={18} />
+    </NavLink>
+  )
+
+  return (
+    <div className="sidebar-account">
+      {signedIn ? (
+        <div className="account-row">
+          <button
+            className="profile-btn"
+            onClick={() => {
+              onNavigate?.()
+              setProfileOpen(true)
+            }}
+            aria-label="Open your profile"
+          >
+            {auth.user.picture ? <img className="avatar" src={auth.user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar" />}
+            <span className="profile-btn-text">
+              <strong>{auth.user.name?.split(' ')[0] ?? auth.user.email ?? 'You'}</strong>
+              <SyncStatusText />
+            </span>
+          </button>
+          {settings}
+        </div>
+      ) : (
+        <div className="account-row">
+          <SyncStatusText />
+          {settings}
+        </div>
+      )}
+      {(auth.status === 'signed-out' || auth.status === 'expired') && <GoogleSignInButton width={216} />}
+    </div>
   )
 }

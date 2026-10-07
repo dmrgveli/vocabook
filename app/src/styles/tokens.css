@@ -2,6 +2,7 @@
    that carry meaning: the K band (how common a word is) colours its card everywhere. */
 
 :root {
+  color-scheme: light;
   --font-word: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
   --font-ui: 'Bricolage Grotesque Variable', system-ui, sans-serif;
 
@@ -42,8 +43,11 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Dark palette: follows the system unless the user picked a theme in Settings
+   (data-theme on <html>, set by src/theme.ts). The two blocks below are identical. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
     --paper: #161519;
     --card: #1f1e23;
     --ink: #f2efe9;
@@ -69,4 +73,32 @@
     --rare: #3d2030;  --rare-ink: #ff8fb7;
     --unknown: #26252b; --unknown-ink: #7e7a84;
   }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #161519;
+  --card: #1f1e23;
+  --ink: #f2efe9;
+  --ink-2: #b8b3ab;
+  --ink-3: #7e7a84;
+  --line: #d9d4cc;
+  --line-soft: #333139;
+  --hover: #26252b;
+
+  --marker: #ffd84d;
+  --marker-ink: #1b1a1f;
+  --accent: #ff7a5c;
+  --danger: #ff7b6b;
+
+  --pop: 3px 3px 0 #000;
+  --pop-lg: 5px 5px 0 #000;
+
+  --k1: #20382a;    --k1-ink: #7fdc9d;
+  --k3: #1e2f45;    --k3-ink: #8cc2ff;
+  --k5: #2c2645;    --k5-ink: #b7a6ff;
+  --k10: #3d2b1f;   --k10-ink: #ffb07a;
+  --k20: #3a3418;   --k20-ink: #f3d55b;
+  --rare: #3d2030;  --rare-ink: #ff8fb7;
+  --unknown: #26252b; --unknown-ink: #7e7a84;
 }

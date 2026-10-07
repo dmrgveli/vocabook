@@ -1,14 +1,26 @@
 import { motion } from 'motion/react'
-import { Plus, Search, X } from 'lucide-react'
-import { useEffect, useMemo, useRef } from 'react'
+import { ArrowUpDown, Plus, Rows3, Search, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { MOD_KEY } from '../components/Sidebar'
 import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
-import { K_BANDS, useLevelsReady } from '../data/levels'
-import { alive, MASTERY_LABELS, type Entry } from '../data/model'
+import { bandOfWord, K_BANDS, levelOf, MAX_LEVEL, useLevelsReady } from '../data/levels'
+import { alive, MASTERY_LABELS, type Entry, type Mastery } from '../data/model'
 import { wordPath } from '../data/paths'
-import { EMPTY_FILTERS, entrySource, filterEntries, groupByDay, hasActiveFilters, localDay } from '../data/notebook'
+import {
+  EMPTY_FILTERS,
+  entrySource,
+  filterEntries,
+  groupEntries,
+  GROUPS,
+  hasActiveFilters,
+  localDay,
+  sortEntries,
+  SORTS,
+  type GroupKey,
+  type SortKey,
+} from '../data/notebook'
 
 const dayFormat = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 const yearFormat = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
@@ -22,12 +34,67 @@ function formatDay(day: string) {
   return date.getFullYear() === new Date().getFullYear() ? dayFormat.format(date) : yearFormat.format(date)
 }
 
+function groupTitle(group: GroupKey, key: string): string {
+  switch (group) {
+    case 'day':
+      return formatDay(key)
+    case 'source':
+      return key || 'No source'
+    case 'level':
+      return K_BANDS.find((b) => b.id === key)?.label ?? 'Level unknown'
+    case 'mastery':
+      return MASTERY_LABELS[key as Mastery]
+    default:
+      return ''
+  }
+}
+
+/** Levels as numbers for sorting; words off the lists come right after 25K. */
+const numericLevel = (word: string) => {
+  const l = levelOf(word)
+  return l === undefined ? undefined : l.level === 'off' ? MAX_LEVEL + 1 : l.level
+}
+
+interface NotebookView {
+  sort: SortKey
+  group: GroupKey
+}
+
+const VIEW_KEY = 'notebook-view'
+const DEFAULT_VIEW: NotebookView = { sort: 'newest', group: 'day' }
+
+/** Sort and grouping, remembered on this device. */
+function useNotebookView(): [NotebookView, (v: NotebookView) => void] {
+  const [view, setViewState] = useState<NotebookView>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null')
+      const valid = saved && SORTS.some((s) => s.id === saved.sort) && GROUPS.some((g) => g.id === saved.group)
+      return valid ? saved : DEFAULT_VIEW
+    } catch {
+      return DEFAULT_VIEW
+    }
+  })
+  const setView = (v: NotebookView) => {
+    setViewState(v)
+    try {
+      localStorage.setItem(VIEW_KEY, JSON.stringify(v))
+    } catch {
+      // storage unavailable: the choice lasts until the page closes
+    }
+  }
+  return [view, setView]
+}
+
 export function Notebook({ entries }: { entries: Entry[] }) {
   const { filters, setFilters, openQuickAdd } = useAppState()
   const searchRef = useRef<HTMLInputElement>(null)
   // Card colours and the "how common" filter come from the BNC/COCA table, which loads in the background.
   const levelsReady = useLevelsReady()
-  const pages = useMemo(() => groupByDay(filterEntries(entries, filters)), [entries, filters, levelsReady])
+  const [view, setView] = useNotebookView()
+  const pages = useMemo(
+    () => groupEntries(sortEntries(filterEntries(entries, filters), view.sort, numericLevel), view.group, bandOfWord),
+    [entries, filters, view, levelsReady],
+  )
   const shown = pages.reduce((n, p) => n + p.entries.length, 0)
   const thisWeek = useMemo(() => entries.filter((e) => Date.parse(e.createdAt) > Date.now() - 7 * 864e5).length, [entries])
 
@@ -88,6 +155,28 @@ export function Notebook({ entries }: { entries: Entry[] }) {
             {c.label} <X size={13} />
           </motion.button>
         ))}
+        <span className="view-controls">
+          <label className="select-chip" title="Sort">
+            <ArrowUpDown size={14} />
+            <select value={view.sort} onChange={(e) => setView({ ...view, sort: e.target.value as SortKey })} aria-label="Sort words">
+              {SORTS.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="select-chip" title="Group">
+            <Rows3 size={14} />
+            <select value={view.group} onChange={(e) => setView({ ...view, group: e.target.value as GroupKey })} aria-label="Group words">
+              {GROUPS.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.id === 'none' ? g.label : `By ${g.label.toLowerCase()}`}
+                </option>
+              ))}
+            </select>
+          </label>
+        </span>
         {hasActiveFilters(filters) && (
           <span className="faint result-count">
             {shown} of {entries.length}
@@ -101,11 +190,13 @@ export function Notebook({ entries }: { entries: Entry[] }) {
       {pages.length === 0 ? (
         <p className="muted no-results">No words match these filters.</p>
       ) : (
-        pages.map(({ day, entries }, pageIndex) => (
-          <section key={day} className="day">
-            <h2 className="day-title">
-              {formatDay(day)} <span className="faint">{entries.length}</span>
-            </h2>
+        pages.map(({ key, entries }, pageIndex) => (
+          <section key={`${view.group}:${key}`} className="day">
+            {view.group !== 'none' && (
+              <h2 className="day-title">
+                {groupTitle(view.group, key)} <span className="faint">{entries.length}</span>
+              </h2>
+            )}
             <div className="card-grid">
               {entries.map((e, i) => (
                 <motion.div

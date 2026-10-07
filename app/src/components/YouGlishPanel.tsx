@@ -26,9 +26,9 @@ export function YouGlishPanel({ word }: { word: string }) {
     <div className="youglish">
       {consent ? <Widget word={word} /> : <ConsentCard word={word} />}
       <p className="youglish-legal faint">
-        Videos by <a href="https://youglish.com" target="_blank" rel="noreferrer">YouGlish</a> from YouTube ·{' '}
-        <a href={YOUTUBE_TERMS_URL} target="_blank" rel="noreferrer">YouTube Terms of Service</a> ·{' '}
-        <a href={GOOGLE_PRIVACY_URL} target="_blank" rel="noreferrer">Google Privacy Policy</a>
+        Clips from YouTube ·{' '}
+        <a href={YOUTUBE_TERMS_URL} target="_blank" rel="noreferrer">YouTube Terms</a> ·{' '}
+        <a href={GOOGLE_PRIVACY_URL} target="_blank" rel="noreferrer">Google Privacy</a>
       </p>
     </div>
   )
@@ -40,7 +40,7 @@ function ConsentCard({ word }: { word: string }) {
       <Clapperboard size={28} />
       <div>
         <p>
-          Hear <b>“{word}”</b> in real conversations. Videos are loaded from YouGlish and YouTube, which may set cookies on your
+          Hear <b>“{word}”</b> in real conversations. The clips come from YouTube, which may set cookies on your
           device.
         </p>
         <button className="btn btn-marker" onClick={() => setYouGlishConsent(true)}>
@@ -156,7 +156,7 @@ function Widget({ word }: { word: string }) {
         </p>
       )}
       {status === 'empty' && <p className="faint">No videos found for “{word}”{accent && ' with this accent'}.</p>}
-      {status === 'error' && <p className="faint">YouGlish can't be reached right now.</p>}
+      {status === 'error' && <p className="faint">Videos can't be loaded right now.</p>}
       {/* hidden only when there is nothing to show: YouGlish sizes itself from a visible container */}
       <div ref={host} className="youglish-host" hidden={status === 'empty' || status === 'error'} />
     </div>

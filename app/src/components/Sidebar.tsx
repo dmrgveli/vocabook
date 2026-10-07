@@ -1,12 +1,12 @@
 import { motion } from 'motion/react'
-import { BookOpen, Plus, Settings } from 'lucide-react'
+import { BookOpen, Plus } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { bandOfWord, K_BANDS, useLevelsReady } from '../data/levels'
 import { MASTERY_LABELS, MASTERY_LEVELS, type Entry } from '../data/model'
 import { useIsMobile } from './MobileBar'
-import { SyncStatusLine } from './SyncStatus'
+import { SidebarAccount } from './SyncStatus'
 import { allSources, type Filters } from '../data/notebook'
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
@@ -62,7 +62,6 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
 
       <nav className="nav">
         <NavItem to="/" icon={<BookOpen size={17} />} label="Notebook" count={entries.length} onClick={onNavigate} />
-        <NavItem to="/settings" icon={<Settings size={17} />} label="Settings" onClick={onNavigate} />
       </nav>
 
       {entries.length > 0 && (
@@ -104,7 +103,7 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
         </div>
       )}
 
-      <SyncStatusLine />
+      <SidebarAccount onNavigate={onNavigate} />
     </aside>
   )
 }

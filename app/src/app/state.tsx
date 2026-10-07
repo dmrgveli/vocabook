@@ -17,6 +17,8 @@ interface AppState {
   /** A word to start with, e.g. one picked from a definition. */
   quickAddPrefill?: QuickAddPrefill
   openQuickAdd: (prefill?: QuickAddPrefill) => void
+  profileOpen: boolean
+  setProfileOpen: (open: boolean) => void
   closeQuickAdd: () => void
   toasts: Toast[]
   toast: (message: string, action?: Toast['action']) => void
@@ -36,6 +38,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [filters, setFiltersState] = useState<Filters>(EMPTY_FILTERS)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [quickAddPrefill, setQuickAddPrefill] = useState<QuickAddPrefill>()
+  const [profileOpen, setProfileOpen] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), [])
@@ -61,12 +64,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       quickAddOpen,
       quickAddPrefill,
       openQuickAdd,
+      profileOpen,
+      setProfileOpen,
       closeQuickAdd,
       toasts,
       toast,
       dismissToast,
     }),
-    [filters, quickAddOpen, quickAddPrefill, openQuickAdd, closeQuickAdd, toasts, toast, dismissToast],
+    [filters, quickAddOpen, quickAddPrefill, openQuickAdd, profileOpen, closeQuickAdd, toasts, toast, dismissToast],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

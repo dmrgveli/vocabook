@@ -1,9 +1,9 @@
 import { RefreshCw } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useAppState } from '../app/state'
-import { renderSignInButton, signOut, useAuth } from '../sync/auth'
+import { signOut, useAuth } from '../sync/auth'
 import { deleteCloudCopy, resolveAccountChange, syncNow, useSyncStatus } from '../sync/engine'
-import { timeAgo } from './SyncStatus'
+import { GoogleSignInButton, timeAgo } from './SyncStatus'
 
 /** Settings card: Google sign-in, sync state and account actions. */
 export function AccountCard() {
@@ -18,7 +18,7 @@ export function AccountCard() {
     return (
       <>
         <p className="muted">Sign in with Google to keep your notebook in sync across your computers. Your words stay saved in this browser too.</p>
-        <GoogleButton />
+        <GoogleSignInButton />
       </>
     )
 
@@ -37,7 +37,7 @@ export function AccountCard() {
       {auth.status === 'expired' ? (
         <>
           <p className="muted">Your Google session ended. Sign in again to keep syncing.</p>
-          <GoogleButton />
+          <GoogleSignInButton />
         </>
       ) : sync.state === 'account-changed' ? (
         <AccountChoice localWords={sync.localWords} remoteWords={sync.remoteWords} email={user.email} />
@@ -75,15 +75,6 @@ export function AccountCard() {
   )
 }
 
-function GoogleButton() {
-  const el = useRef<HTMLDivElement>(null)
-  const [failed, setFailed] = useState(false)
-  useEffect(() => {
-    if (el.current) renderSignInButton(el.current).catch(() => setFailed(true))
-  }, [])
-  if (failed) return <p className="faint small">Google sign-in can't be reached right now.</p>
-  return <div ref={el} className="google-button" />
-}
 
 function AccountChoice({ localWords, remoteWords, email }: { localWords: number; remoteWords: number; email?: string }) {
   const [busy, setBusy] = useState(false)

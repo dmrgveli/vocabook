@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { resolvedTheme } from '../theme'
 
 // Google sign-in with Google Identity Services. The ID token lives in memory only
 // (never in localStorage); a "was signed in" hint lets the next visit sign in again
@@ -156,10 +157,20 @@ export async function initAuth() {
 }
 
 /** Draws Google's own sign-in button into the element. */
-export async function renderSignInButton(el: HTMLElement) {
+export async function renderSignInButton(el: HTMLElement, width?: number) {
   const id = await loadGis()
-  const dark = matchMedia('(prefers-color-scheme: dark)').matches
-  id.renderButton(el, { type: 'standard', theme: dark ? 'filled_black' : 'outline', size: 'large', shape: 'pill', text: 'continue_with' })
+  const dark = resolvedTheme() === 'dark'
+  id.renderButton(el, {
+    type: 'standard',
+    theme: dark ? 'filled_black' : 'outline',
+    size: 'large',
+    shape: 'pill',
+    text: 'signin_with',
+    logo_alignment: 'left',
+    // The app is always in English, whatever the browser's language.
+    locale: 'en',
+    ...(width ? { width } : {}),
+  })
 }
 
 /**

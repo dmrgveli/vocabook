@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parseDefinitions, parseFrequency } from '../api/datamuse'
 import { parseDictionary, type FDEntry } from '../api/dictionary'
 import { createEncounter, createEntry, createNote, firstEncounter, now } from './model'
-import { allSources, filterEntries, groupByDay, localDay } from './notebook'
+import { allSources, filterEntries } from './notebook'
 
 describe('datamuse parsing', () => {
   it('reads the frequency tag', () => {
@@ -67,12 +67,6 @@ describe('notebook', () => {
 
   it('ignores deleted notes in search', () => {
     expect(filterEntries([a, b], { query: 'flourish' })).toEqual([])
-  })
-
-  it('groups by local day, newest first', () => {
-    const old = { ...a, createdAt: '2026-01-02T10:00:00.000Z' }
-    const groups = groupByDay([old, b])
-    expect(groups.map((g) => g.day)).toEqual([localDay(b.createdAt), localDay(old.createdAt)])
   })
 
   it('lists sources with counts', () => {

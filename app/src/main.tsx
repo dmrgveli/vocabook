@@ -13,7 +13,9 @@ import { App } from './app/App'
 import { AppStateProvider } from './app/state'
 import { initAuth } from './sync/auth'
 import { startSync } from './sync/engine'
+import { initTheme } from './theme'
 
+initTheme()
 startSync()
 void initAuth()
 

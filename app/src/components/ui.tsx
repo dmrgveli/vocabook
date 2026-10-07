@@ -35,7 +35,6 @@ export function KBadge({ word, large, plain }: { word: string; large?: boolean; 
       <span className="tip-bubble" role="tooltip">
         <strong>{description}</strong>
         {level.family && <span>Word family: {level.family}</span>}
-        <span>BNC/COCA word family lists</span>
       </span>
     </span>
   )

@@ -248,9 +248,6 @@ function Dictionary({ entry }: { entry: Entry }) {
     <>
       <Panel title="Definitions" aside={refresh}>
         <Definitions enrichment={e} word={entry.word} />
-        {e.definitionsFrom === 'datamuse' && (
-          <p className="source-note faint">Definitions from Datamuse — Free Dictionary was unavailable or had no entry.</p>
-        )}
       </Panel>
 
       {hasCollocations(e.collocations) && (
@@ -322,51 +319,61 @@ function hasCollocations(c: CollocationSet): boolean {
   return c.before.length + c.after.length > 0
 }
 
+const COLLOCATIONS_SHOWN = 5
+
 /**
- * The most frequent neighbours on each side, most common first. The bar shows how often
- * each pair occurs compared with the most frequent pair in its column (Datamuse scores).
+ * A small map of the word in use: the word in the middle, the words that most often
+ * come right before it on the left and right after it on the right. More frequent
+ * pairs are larger and darker (Datamuse scores, relative to the top pair on that side).
+ * Clicking a word reads the phrase aloud.
  */
 function Collocations({ word, collocations: c }: { word: string; collocations: CollocationSet }) {
-  const columns = [
-    { label: 'Comes after', hint: `Words that often come right before “${word}”`, items: c.before.map(asCollocation), phrase: (w: string) => [w, word] },
-    { label: 'Comes before', hint: `Words that often come right after “${word}”`, items: c.after.map(asCollocation), phrase: (w: string) => [word, w] },
-  ].filter((col) => col.items.length > 0)
+  const [expanded, setExpanded] = useState(false)
+  const before = c.before.map(asCollocation)
+  const after = c.after.map(asCollocation)
+  const limit = expanded ? Infinity : COLLOCATIONS_SHOWN
+  const hidden = Math.max(before.length, after.length) - COLLOCATIONS_SHOWN
+
+  const side = (items: Collocation[], where: 'before' | 'after') => {
+    const top = Math.max(...items.map((i) => i.score ?? 0), 1)
+    return (
+      <ol className={`kwic-side kwic-${where}`} aria-label={where === 'before' ? `Words before “${word}”` : `Words after “${word}”`}>
+        {items.slice(0, limit).map((item) => {
+          const phrase = where === 'before' ? `${item.word} ${word}` : `${word} ${item.word}`
+          const share = item.score ? item.score / top : 0.5
+          return (
+            <li key={item.word}>
+              <button
+                type="button"
+                className="kwic-word"
+                lang="en"
+                style={{ '--share': share } as React.CSSProperties}
+                onClick={() => speak(phrase)}
+                title={`“${phrase}”${item.score ? ` · ${share === 1 ? 'most frequent' : `${Math.max(1, Math.round(share * 100))}% as frequent as the top pair`}` : ''}`}
+              >
+                {item.word}
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    )
+  }
 
   return (
-    <div className="collocations">
-      {columns.map((col) => {
-        const top = Math.max(...col.items.map((i) => i.score ?? 0))
-        return (
-          <div key={col.label} className="coll-column">
-            <span className="faint coll-label" title={col.hint}>
-              {col.label}
-            </span>
-            <ol className="coll-list">
-              {col.items.map((item) => {
-                const [a, b] = col.phrase(item.word)
-                const share = top && item.score ? item.score / top : undefined
-                return (
-                  <li key={item.word}>
-                    <button type="button" className="coll-row" lang="en" onClick={() => speak(`${a} ${b}`)} title={`Say “${a} ${b}”`}>
-                      <span className="coll-phrase">
-                        {a === word ? <b>{a}</b> : <span>{a}</span>} {b === word ? <b>{b}</b> : <span>{b}</span>}
-                      </span>
-                      {share !== undefined && (
-                        <span
-                          className="coll-bar"
-                          title={share === 1 ? 'The most frequent pair' : `About ${Math.max(1, Math.round(share * 100))}% as frequent as the top pair`}
-                        >
-                          <span style={{ width: `${Math.max(4, share * 100)}%` }} />
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                )
-              })}
-            </ol>
-          </div>
-        )
-      })}
+    <div className="kwic">
+      <div className="kwic-map">
+        {before.length > 0 ? side(before, 'before') : <span />}
+        <span className="kwic-center word-font" lang="en">
+          {word}
+        </span>
+        {after.length > 0 ? side(after, 'after') : <span />}
+      </div>
+      {hidden > 0 && (
+        <button className="btn btn-quiet small kwic-more" onClick={() => setExpanded((x) => !x)}>
+          {expanded ? 'Show fewer' : `+${hidden} more`}
+        </button>
+      )}
     </div>
   )
 }

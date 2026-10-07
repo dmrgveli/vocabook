@@ -15,7 +15,7 @@ export function SourceInput({ value, onChange, recent, autoFocus }: Props) {
           className="field"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="e.g. Severance S2E3, The Hobbit, team meeting…"
+          placeholder="A show, a book, a podcast, a conversation…"
           autoFocus={autoFocus}
         />
       </label>
