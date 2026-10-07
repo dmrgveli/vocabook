@@ -28,7 +28,9 @@ export function WordPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    // Desktop scrolls the main column; small screens scroll the page itself.
     document.querySelector('.main')?.scrollTo(0, 0)
+    window.scrollTo(0, 0)
   }, [param])
 
   useEffect(() => {

@@ -1,0 +1,384 @@
+/* Small screens (phones, narrow windows). Desktop is the primary layout: nothing here
+   applies at 900px and wider, except hiding the mobile-only elements below.
+   The breakpoint matches MOBILE_QUERY in components/MobileBar.tsx. */
+
+.mobile-bar,
+.menu-scrim,
+.mobile-add {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* The page scrolls as a whole, so mobile browsers can hide their toolbars. */
+  .app {
+    display: block;
+    height: auto;
+    min-width: 0;
+  }
+
+  .main {
+    overflow: visible;
+  }
+
+  .page {
+    padding: 16px 16px calc(100px + env(safe-area-inset-bottom));
+  }
+
+  /* Phones zoom into inputs smaller than 16px; avoid that. */
+  .field,
+  textarea.field,
+  .search input,
+  .inline-edit,
+  .palette-details input {
+    font-size: 16px;
+  }
+
+  /* ---------- top bar ---------- */
+
+  .mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    height: calc(56px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 12px 0 6px;
+    background: var(--paper);
+    border-bottom: 1.5px solid var(--line-soft);
+  }
+
+  .mobile-menu-btn {
+    width: 44px;
+    height: 44px;
+    color: var(--ink);
+  }
+
+  .mobile-brand {
+    padding: 0;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .mobile-brand .brand-logo {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* ---------- sidebar becomes a drawer ---------- */
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 45;
+    width: min(300px, 86vw);
+    padding-top: calc(18px + env(safe-area-inset-top));
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+    background: var(--paper);
+    border-right: 1.5px solid var(--line);
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform 0.28s var(--ease), visibility 0s linear 0.28s;
+  }
+
+  .sidebar.open {
+    transform: none;
+    visibility: visible;
+    box-shadow: 5px 0 0 rgb(27 26 31 / 0.12);
+    transition: transform 0.28s var(--ease), visibility 0s;
+  }
+
+  .sidebar .add-btn kbd {
+    display: none;
+  }
+
+  .sidebar .filter-item,
+  .sidebar .nav-item {
+    min-height: 40px;
+  }
+
+  .menu-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 44;
+    background: rgb(27 26 31 / 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .menu-scrim[data-open='true'] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body:has(.sidebar.open) {
+    overflow: hidden;
+  }
+
+  /* ---------- add button ---------- */
+
+  .mobile-add {
+    display: inline-flex;
+    position: fixed;
+    right: 16px;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    z-index: 35;
+    width: 58px;
+    height: 58px;
+    padding: 0;
+    border-radius: 50%;
+    box-shadow: var(--pop-lg);
+  }
+
+  .toaster {
+    left: 12px;
+    right: 12px;
+    bottom: calc(90px + env(safe-area-inset-bottom));
+    align-items: stretch;
+  }
+
+  .toast {
+    justify-content: space-between;
+  }
+
+  /* ---------- notebook ---------- */
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    margin-bottom: 10px;
+  }
+
+  .page-title {
+    font-size: 34px;
+  }
+
+  .toolbar {
+    top: calc(56px + env(safe-area-inset-top));
+    margin: 0 -16px;
+    padding: 8px 16px 12px;
+  }
+
+  .search,
+  .search:focus-within {
+    width: 100%;
+  }
+
+  .search kbd {
+    display: none;
+  }
+
+  .result-count {
+    margin-left: 0;
+  }
+
+  .day {
+    margin-top: 16px;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+
+  .word-card {
+    min-height: 128px;
+    padding: 12px;
+  }
+
+  .word-card-head {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .word-card-word {
+    font-size: 26px;
+  }
+
+  .word-card-head .k-badge {
+    margin-top: 3px;
+  }
+
+  .empty-state {
+    min-height: calc(100dvh - 56px);
+  }
+
+  .empty-card {
+    padding: 28px 20px;
+  }
+
+  .empty-card h1 {
+    font-size: 26px;
+  }
+
+  .empty-card kbd {
+    display: none;
+  }
+
+  /* ---------- word page ---------- */
+
+  .back-link {
+    margin-bottom: 4px;
+  }
+
+  .word-hero {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+    padding-bottom: 18px;
+  }
+
+  .word-title-row {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+  }
+
+  .word-title {
+    font-size: clamp(44px, 13vw, 64px);
+  }
+
+  .title-badges {
+    margin-top: 0;
+  }
+
+  .word-meta {
+    margin-top: 12px;
+  }
+
+  .word-hero-side {
+    align-items: stretch;
+  }
+
+  .segmented {
+    width: 100%;
+  }
+
+  .word-columns {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .word-col {
+    gap: 12px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .collocations {
+    grid-template-columns: 1fr;
+  }
+
+  .videos-inner {
+    margin-top: 14px;
+    padding: 12px;
+  }
+
+  .youglish-bar {
+    flex-wrap: wrap;
+  }
+
+  /* the big badge's tooltip opens towards the page, not off its edge */
+  .tip-below .tip-bubble {
+    left: auto;
+    right: 0;
+    transform: translateY(-4px);
+  }
+
+  .tip-below:hover .tip-bubble,
+  .tip-below:focus-visible .tip-bubble,
+  .tip-below:focus-within .tip-bubble {
+    transform: none;
+  }
+
+  /* ---------- settings ---------- */
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---------- dialogs ---------- */
+
+  .overlay,
+  .overlay-soft {
+    padding: calc(12px + env(safe-area-inset-top)) 12px 12px;
+  }
+
+  .dialog,
+  .reminder {
+    width: 100%;
+  }
+
+  .palette-input {
+    padding: 12px 14px;
+  }
+
+  .palette-input input {
+    font-size: 28px;
+  }
+
+  .palette-details {
+    padding: 14px;
+  }
+
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-actions .hint {
+    display: none;
+  }
+
+  .dialog-actions {
+    justify-content: flex-end;
+  }
+
+  .reminder {
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top));
+    overflow-y: auto;
+    padding: 20px 16px 14px;
+  }
+
+  .reminder-title {
+    font-size: 22px;
+  }
+
+  .reminder-word-head {
+    flex-wrap: wrap;
+  }
+
+  .reminder-source {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}
+
+/* Touch screens have no hover: show what desktop reveals on hover. */
+@media (hover: none) {
+  .hover-only {
+    opacity: 1;
+  }
+
+  .word-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* words in definitions can be tapped for a quick look */
+  .peek-word {
+    text-decoration: underline dotted var(--ink-3);
+    text-underline-offset: 3px;
+  }
+}

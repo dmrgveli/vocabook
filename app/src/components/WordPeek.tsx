@@ -13,10 +13,14 @@ import { KBadge, SpeakButton } from './ui'
 // base form, how common it is, pronunciation and one short definition, plus a way to
 // add it to the notebook. It closes when the pointer moves well away from it.
 
-const WIDTH = 300
+const MAX_WIDTH = 300
+/** Narrower than 300px only on small phones. */
+const peekWidth = () => Math.min(MAX_WIDTH, window.innerWidth - 24)
 const GAP = 8
 /** How far (px) the pointer may wander from the card and the clicked word before it closes. */
 const CLOSE_DISTANCE = 90
+/** How far (px) the clicked word may scroll before the card closes; small jitters are ignored. */
+const SCROLL_TOLERANCE = 40
 
 interface PeekState {
   word: string
@@ -123,7 +127,8 @@ function PeekCard({ state }: { state: PeekState }) {
   useLayoutEffect(() => {
     const r = state.anchor.getBoundingClientRect()
     const height = card.current?.offsetHeight ?? 160
-    const left = Math.min(Math.max(r.left + r.width / 2 - WIDTH / 2, 12), window.innerWidth - WIDTH - 12)
+    const width = peekWidth()
+    const left = Math.min(Math.max(r.left + r.width / 2 - width / 2, 12), window.innerWidth - width - 12)
     setPos(
       r.bottom + GAP + height > window.innerHeight - 12
         ? { left, bottom: window.innerHeight - r.top + GAP }
@@ -131,7 +136,7 @@ function PeekCard({ state }: { state: PeekState }) {
     )
   }, [state.anchor, info])
 
-  // Close when the pointer moves far away, on Escape, on a click elsewhere or on scroll.
+  // Close when the pointer moves far away, on Escape, on a click elsewhere or when the word scrolls away.
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       if (!card.current) return
@@ -146,7 +151,11 @@ function PeekCard({ state }: { state: PeekState }) {
       if (!card.current?.contains(target) && !state.anchor.contains(target)) closePeek()
     }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closePeek()
-    const onScroll = () => closePeek()
+    // Phones fire small scrolls right after a tap (momentum, toolbars hiding).
+    const startTop = state.anchor.getBoundingClientRect().top
+    const onScroll = () => {
+      if (Math.abs(state.anchor.getBoundingClientRect().top - startTop) > SCROLL_TOLERANCE) closePeek()
+    }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerdown', onDown)
     window.addEventListener('keydown', onKey)
@@ -167,7 +176,7 @@ function PeekCard({ state }: { state: PeekState }) {
       className="peek"
       role="dialog"
       aria-label={`About “${p?.word ?? state.word}”`}
-      style={{ width: WIDTH, left: pos?.left ?? -9999, top: pos?.top, bottom: pos?.bottom }}
+      style={{ width: peekWidth(), left: pos?.left ?? -9999, top: pos?.top, bottom: pos?.bottom }}
       initial={{ opacity: 0, y: pos?.bottom !== undefined ? 6 : -6, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.12 } }}

@@ -5,16 +5,22 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { K_BANDS, kBand } from '../data/frequency'
 import { MASTERY_LABELS, MASTERY_LEVELS, type Entry } from '../data/model'
+import { useIsMobile } from './MobileBar'
 import { SyncStatusLine } from './SyncStatus'
 import { allSources, type Filters } from '../data/notebook'
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 export const MOD_KEY = isMac ? '⌘' : 'Ctrl'
 
-export function Sidebar({ entries }: { entries: Entry[] }) {
+/**
+ * The left column on desktop. On small screens the same element becomes a drawer
+ * (styles/mobile.css); `open` and `onNavigate` only matter there.
+ */
+export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[]; open?: boolean; onNavigate?: () => void }) {
   const { filters, setFilters, openQuickAdd } = useAppState()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const mobile = useIsMobile()
 
   const counts = useMemo(() => {
     const band = new Map<string, number>()
@@ -32,22 +38,30 @@ export function Sidebar({ entries }: { entries: Entry[] }) {
   const toggle = <K extends keyof Filters>(key: K, value: Filters[K]) => {
     setFilters((f) => ({ ...f, [key]: f[key] === value ? undefined : value }))
     if (pathname !== '/') navigate('/')
+    onNavigate?.()
   }
 
   return (
-    <aside className="sidebar">
+    // A closed drawer is off-screen; `inert` keeps keyboard and screen readers out of it.
+    <aside id="sidebar" className={open ? 'sidebar open' : 'sidebar'} inert={mobile && !open}>
       <div className="brand">
         <img className="brand-logo" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={34} height={34} />
         Vocabook
       </div>
 
-      <button className="btn btn-marker add-btn" onClick={() => openQuickAdd()}>
+      <button
+        className="btn btn-marker add-btn"
+        onClick={() => {
+          onNavigate?.()
+          openQuickAdd()
+        }}
+      >
         <Plus size={17} strokeWidth={2.5} /> Add word <kbd>{MOD_KEY} K</kbd>
       </button>
 
       <nav className="nav">
-        <NavItem to="/" icon={<BookOpen size={17} />} label="Notebook" count={entries.length} />
-        <NavItem to="/settings" icon={<Settings size={17} />} label="Settings" />
+        <NavItem to="/" icon={<BookOpen size={17} />} label="Notebook" count={entries.length} onClick={onNavigate} />
+        <NavItem to="/settings" icon={<Settings size={17} />} label="Settings" onClick={onNavigate} />
       </nav>
 
       {entries.length > 0 && (
@@ -94,9 +108,9 @@ export function Sidebar({ entries }: { entries: Entry[] }) {
   )
 }
 
-function NavItem({ to, icon, label, count }: { to: string; icon: ReactNode; label: string; count?: number }) {
+function NavItem({ to, icon, label, count, onClick }: { to: string; icon: ReactNode; label: string; count?: number; onClick?: () => void }) {
   return (
-    <NavLink to={to} end className="nav-item">
+    <NavLink to={to} end className="nav-item" onClick={onClick}>
       {({ isActive }) => (
         <>
           {isActive && <motion.span layoutId="nav-active" className="nav-active" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
