@@ -148,7 +148,7 @@ function QuickAddForm({ onDone, prefill }: { onDone: () => void; prefill?: Quick
         {picked ? (
           <>
             <SpeakButton text={picked.word} />
-            <KBadge frequency={picked.frequency} />
+            <KBadge word={picked.word} />
           </>
         ) : (
           suggestions.status === 'loading' && <span className="spinner" />
@@ -184,7 +184,7 @@ function QuickAddForm({ onDone, prefill }: { onDone: () => void; prefill?: Quick
                   <span className="word-font option-word" lang="en">
                     {s.word}
                   </span>
-                  {s.frequency === undefined ? <span className="faint">Add as typed</span> : <KBadge frequency={s.frequency} plain />}
+                  {s.frequency === undefined ? <span className="faint">Add as typed</span> : <KBadge word={s.word} plain />}
                   {i === highlight && <CornerDownLeft size={14} className="faint" />}
                 </button>
               </li>

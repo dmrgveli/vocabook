@@ -1,34 +1,41 @@
 import { motion } from 'motion/react'
 import { Mic, Snail, Volume2 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { describeK, formatFrequency, formatK, frequencyK, kBand } from '../data/frequency'
+import { bandOf, bandOfWord, describeLevel, formatLevel, levelOf, useLevelsReady } from '../data/levels'
 import { MASTERY_HINTS, MASTERY_LABELS, MASTERY_LEVELS, type Mastery } from '../data/model'
 import { canSpeak, speak, useSpeaking } from '../speech'
 
 /** CSS class that paints an element in its K band's colours. */
-export function toneClass(frequency: number | undefined): string {
-  return `tone-${kBand(frequency) ?? 'unknown'}`
+export function toneClass(word: string): string {
+  return `tone-${bandOfWord(word) ?? 'unknown'}`
 }
 
-/** "4K" = among the 4,000 most common words; hovering or focusing it explains that. */
-export function KBadge({ frequency, large, plain }: { frequency?: number; large?: boolean; plain?: boolean }) {
-  const k = frequencyK(frequency)
-  if (k === undefined || frequency === undefined) return null
-  const description = describeK(k)
+/**
+ * "4K" = the word's family is among the 4,000 most common (BNC/COCA lists).
+ * Hovering or focusing it explains that; `plain` is for use inside other buttons.
+ */
+export function KBadge({ word, large, plain }: { word: string; large?: boolean; plain?: boolean }) {
+  useLevelsReady()
+  const level = levelOf(word)
+  if (!level) return null
+  const label = formatLevel(level)
+  const description = describeLevel(level)
+  const tone = `tone-${bandOf(level)}`
   if (plain)
     return (
-      <span className={`k-badge ${toneClass(frequency)}`} title={description}>
-        {formatK(k)}
+      <span className={`k-badge ${tone}`} title={description}>
+        {label}
       </span>
     )
   return (
-    <span className={`tip ${large ? 'tip-below' : ''}`} tabIndex={0} aria-label={`${formatK(k)}: ${description}`}>
-      <span className={`k-badge ${toneClass(frequency)} ${large ? 'k-badge-lg' : ''}`} aria-hidden>
-        {formatK(k)}
+    <span className={`tip ${large ? 'tip-below' : ''}`} tabIndex={0} aria-label={`${label}: ${description}`}>
+      <span className={`k-badge ${tone} ${large ? 'k-badge-lg' : ''}`} aria-hidden>
+        {label}
       </span>
       <span className="tip-bubble" role="tooltip">
         <strong>{description}</strong>
-        <span>{formatFrequency(frequency)}</span>
+        {level.family && <span>Word family: {level.family}</span>}
+        <span>BNC/COCA word family lists</span>
       </span>
     </span>
   )

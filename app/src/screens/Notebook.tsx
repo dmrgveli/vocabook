@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { MOD_KEY } from '../components/Sidebar'
 import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
-import { K_BANDS } from '../data/frequency'
+import { K_BANDS, useLevelsReady } from '../data/levels'
 import { alive, MASTERY_LABELS, type Entry } from '../data/model'
 import { wordPath } from '../data/paths'
 import { EMPTY_FILTERS, entrySource, filterEntries, groupByDay, hasActiveFilters, localDay } from '../data/notebook'
@@ -25,7 +25,9 @@ function formatDay(day: string) {
 export function Notebook({ entries }: { entries: Entry[] }) {
   const { filters, setFilters, openQuickAdd } = useAppState()
   const searchRef = useRef<HTMLInputElement>(null)
-  const pages = useMemo(() => groupByDay(filterEntries(entries, filters)), [entries, filters])
+  // Card colours and the "how common" filter come from the BNC/COCA table, which loads in the background.
+  const levelsReady = useLevelsReady()
+  const pages = useMemo(() => groupByDay(filterEntries(entries, filters)), [entries, filters, levelsReady])
   const shown = pages.reduce((n, p) => n + p.entries.length, 0)
   const thisWeek = useMemo(() => entries.filter((e) => Date.parse(e.createdAt) > Date.now() - 7 * 864e5).length, [entries])
 
@@ -128,13 +130,13 @@ function WordCard({ entry }: { entry: Entry }) {
   const encounters = alive(entry.encounters).length
   const definition = entry.enrichment?.meanings[0]?.definitions[0]?.definition
   return (
-    <article className={`word-card ${toneClass(entry.frequency)}`}>
+    <article className={`word-card ${toneClass(entry.word)}`}>
       <div className="word-card-head">
         {/* the link stretches over the whole card; the speak button sits above it */}
         <Link to={wordPath(entry.word)} className="word-font word-card-word card-link" lang="en">
           {entry.word}
         </Link>
-        <KBadge frequency={entry.frequency} />
+        <KBadge word={entry.word} />
       </div>
       <div className="row word-card-sub">
         <SpeakButton text={entry.word} />

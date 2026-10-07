@@ -126,7 +126,7 @@ function ReminderWord({ entry, onOpen }: { entry: Entry; onOpen: () => void }) {
           {entry.word}
         </button>
         <SpeakButton text={entry.word} />
-        <KBadge frequency={entry.frequency} plain />
+        <KBadge word={entry.word} plain />
         {source && <span className="faint small reminder-source">from {source}</span>}
       </div>
       {revealed ? (

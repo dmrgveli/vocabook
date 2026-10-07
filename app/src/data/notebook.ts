@@ -1,4 +1,4 @@
-import { kBand, type KBand } from './frequency'
+import { bandOfWord, type KBand } from './levels'
 import { alive, firstEncounter, type Entry, type Mastery } from './model'
 
 export interface Filters {
@@ -28,7 +28,7 @@ export function filterEntries(entries: Entry[], f: Filters): Entry[] {
   return entries.filter(
     (e) =>
       (!q || matchesQuery(e, q, qTr)) &&
-      (!f.band || kBand(e.frequency) === f.band) &&
+      (!f.band || bandOfWord(e.word) === f.band) &&
       (!f.mastery || e.mastery === f.mastery) &&
       (!f.source || alive(e.encounters).some((enc) => enc.source === f.source)),
   )

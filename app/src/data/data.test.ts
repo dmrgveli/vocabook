@@ -1,41 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { parseDefinitions, parseFrequency } from '../api/datamuse'
 import { parseDictionary, type FDEntry } from '../api/dictionary'
-import { estimateRank, formatK, frequencyK, kBand, MAX_K } from './frequency'
 import { createEncounter, createEntry, createNote, firstEncounter, now } from './model'
 import { allSources, filterEntries, groupByDay, localDay } from './notebook'
-
-describe('frequency ranks', () => {
-  it('estimates the thousand a word falls in', () => {
-    expect(frequencyK(292)).toBe(1) // get
-    expect(frequencyK(28.97)).toBe(3) // decide
-    expect(frequencyK(11.37)).toBe(6) // grasp
-    expect(frequencyK(2.79)).toBe(14) // thrive
-    expect(frequencyK(0.68)).toBe(26) // nuance
-    expect(frequencyK(0.01)).toBe(MAX_K + 1)
-    expect(frequencyK(undefined)).toBeUndefined()
-    expect(frequencyK(0)).toBeUndefined()
-  })
-
-  it('hits the calibration points exactly and is monotonic', () => {
-    expect(estimateRank(22)).toBe(3000)
-    expect(estimateRank(4.51)).toBe(10000)
-    let previous = 0
-    for (let f = 500; f > 0.05; f *= 0.9) {
-      const r = estimateRank(f)
-      expect(r).toBeGreaterThanOrEqual(previous)
-      previous = r
-    }
-  })
-
-  it('formats and groups', () => {
-    expect(formatK(4)).toBe('4K')
-    expect(formatK(MAX_K + 1)).toBe('40K+')
-    expect(kBand(292)).toBe('k1')
-    expect(kBand(11.37)).toBe('k10')
-    expect(kBand(0.68)).toBe('rare')
-  })
-})
 
 describe('datamuse parsing', () => {
   it('reads the frequency tag', () => {
@@ -93,9 +60,8 @@ describe('notebook', () => {
     expect(a.mastery).toBe('recognize')
   })
 
-  it('filters by query, frequency band and source', () => {
+  it('filters by query and source', () => {
     expect(filterEntries([a, b], { query: 'kavra' })).toEqual([a])
-    expect(filterEntries([a, b], { query: '', band: 'k20' })).toEqual([b])
     expect(filterEntries([a, b], { query: '', source: 'Book' })).toEqual([a])
   })
 

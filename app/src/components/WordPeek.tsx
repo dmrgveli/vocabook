@@ -187,7 +187,7 @@ function PeekCard({ state }: { state: PeekState }) {
           {p?.word ?? state.word}
         </span>
         <SpeakButton text={p?.word ?? state.word} />
-        {p && <KBadge frequency={p.frequency} plain />}
+        {p && <KBadge word={p.word} plain />}
       </div>
 
       {info === undefined && (

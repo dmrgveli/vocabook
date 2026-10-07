@@ -94,7 +94,7 @@ function WordPageContent({ entry }: { entry: Entry }) {
               animate={{ scale: 1, rotate: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 400, damping: 14, delay: 0.15 }}
             >
-              <KBadge frequency={entry.frequency} large />
+              <KBadge word={entry.word} large />
               <button
                 type="button"
                 className="video-badge"

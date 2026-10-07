@@ -3,7 +3,7 @@ import { BookOpen, Plus, Settings } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
-import { K_BANDS, kBand } from '../data/frequency'
+import { bandOfWord, K_BANDS, useLevelsReady } from '../data/levels'
 import { MASTERY_LABELS, MASTERY_LEVELS, type Entry } from '../data/model'
 import { useIsMobile } from './MobileBar'
 import { SyncStatusLine } from './SyncStatus'
@@ -21,17 +21,18 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const mobile = useIsMobile()
+  const levelsReady = useLevelsReady()
 
   const counts = useMemo(() => {
     const band = new Map<string, number>()
     const mastery = new Map<string, number>()
     for (const e of entries) {
-      const b = kBand(e.frequency)
+      const b = bandOfWord(e.word)
       if (b) band.set(b, (band.get(b) ?? 0) + 1)
       mastery.set(e.mastery, (mastery.get(e.mastery) ?? 0) + 1)
     }
     return { band, mastery }
-  }, [entries])
+  }, [entries, levelsReady])
   const sources = useMemo(() => allSources(entries).slice(0, 8), [entries])
 
   // Picking a filter anywhere takes you to the notebook.

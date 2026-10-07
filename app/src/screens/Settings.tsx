@@ -64,11 +64,16 @@ export function Settings({ entries }: { entries: Entry[] }) {
         <Card icon={<BookA size={18} />} title="Data sources" index={5}>
           <ul className="sources">
             <SourceLink href="https://dictionaryapi.dev/" name="Free Dictionary API" what="Definitions, examples, recordings, origin" />
-            <SourceLink href="https://www.datamuse.com/api/" name="Datamuse" what="Suggestions, frequency, collocations, related words" />
+            <SourceLink href="https://www.datamuse.com/api/" name="Datamuse" what="Suggestions, collocations, related words, backup definitions" />
+            <SourceLink
+              href="https://www.wgtn.ac.nz/lals/resources/paul-nations-resources/vocabulary-analysis-programs"
+              name="BNC/COCA word family lists"
+              what="The 1K–25K levels. I.S.P. Nation, Victoria University of Wellington, CC BY-SA 4.0"
+            />
             <SourceLink href="https://youglish.com/" name="YouGlish" what="Pronunciation in real YouTube videos" />
           </ul>
           <p className="faint small">
-            The 1K–40K ranks are estimated from Datamuse frequencies, calibrated against the OpenSubtitles 50k word list.
+            A word's level (1K–25K) is the thousand its word family falls in on Nation's BNC/COCA lists; 25K+ means it is not on them.
           </p>
         </Card>
       </div>
