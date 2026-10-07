@@ -798,3 +798,26 @@ p:hover .hover-only,
 .sources .faint {
   font-size: 13px;
 }
+
+/* account */
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: var(--marker);
+  object-fit: cover;
+  flex: none;
+}
+
+.google-button {
+  min-height: 44px;
+  color-scheme: light;
+}

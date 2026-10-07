@@ -23,7 +23,9 @@ function db() {
   return dbPromise
 }
 
-type Listener = () => void
+/** 'local' = the user changed something; 'sync' = changes pulled from the cloud. */
+export type ChangeOrigin = 'local' | 'sync'
+type Listener = (origin: ChangeOrigin) => void
 const listeners = new Set<Listener>()
 
 export function subscribe(listener: Listener): () => void {
@@ -31,13 +33,34 @@ export function subscribe(listener: Listener): () => void {
   return () => listeners.delete(listener)
 }
 
-function notify() {
-  listeners.forEach((l) => l())
+function notify(origin: ChangeOrigin = 'local') {
+  listeners.forEach((l) => l(origin))
 }
 
 export async function listEntries(): Promise<Entry[]> {
   const all = await (await db()).getAll('entries')
   return all.filter((e) => !e.deletedAt)
+}
+
+/** Every record, including soft-deleted ones (sync needs the tombstones). */
+export async function listAllEntries(): Promise<Entry[]> {
+  return (await db()).getAll('entries')
+}
+
+/** Writes records pulled from the cloud exactly as they are (timestamps untouched). */
+export async function applySyncedEntries(entries: Entry[]): Promise<void> {
+  if (entries.length === 0) return
+  const tx = (await db()).transaction('entries', 'readwrite')
+  await Promise.all([...entries.map((e) => tx.store.put(e)), tx.done])
+  notify('sync')
+}
+
+/** Replaces the whole local notebook (used when switching to another account's notebook). */
+export async function replaceAllEntries(entries: Entry[]): Promise<void> {
+  const tx = (await db()).transaction('entries', 'readwrite')
+  await tx.store.clear()
+  await Promise.all([...entries.map((e) => tx.store.put(e)), tx.done])
+  notify('sync')
 }
 
 export async function getEntry(id: string): Promise<Entry | undefined> {

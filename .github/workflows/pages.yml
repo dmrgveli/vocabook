@@ -33,6 +33,9 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+          # Repository variables (Settings → Secrets and variables → Actions → Variables); not secrets.
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          VITE_SYNC_URL: ${{ vars.SYNC_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app/dist

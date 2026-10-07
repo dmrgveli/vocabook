@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react'
 const CSP = [
   "default-src 'self'",
   "script-src 'self' https://accounts.google.com https://youglish.com",
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
   "font-src 'self'",
   "img-src 'self' data: https:",
   "media-src 'self' https:",
