@@ -99,7 +99,7 @@ GitHub repo (herkese açık)
 | 0. Temel | Veri modeli (karşılaşmalar, notlar dahil), tasarım sistemi | ✅ |
 | 1. Defter | Ekle, gez, ara, filtrele; kelime sayfası; Datamuse otomatik tamamlama + frekans | ✅ |
 | 2. Zenginleştirme | Free Dictionary, Datamuse collocation'ları, YouGlish, TTS, K sırası | ✅ (YouGlish onay sonrası video oynatma henüz canlı denenmedi) |
-| 3. Hesap + Sync | Google girişi, Worker, R2 | — |
+| 3. Hesap + Sync | Google girişi, Worker, R2 | Kod ✅ (testli); canlıya alma kullanıcının Google Client ID + Cloudflare adımlarını bekliyor |
 | 4. Pekiştirme | Karşılaşma kaydı, "defterden bir sayfa" önerileri | Karşılaşma kaydı ✅; öneriler — |
 | 5. Ekstralar | Flashcard ve diğer etkinlikler | — |
 
@@ -179,19 +179,32 @@ app/
 - YouGlish paneli: onay yoksa kesik çizgili onay kartı; onay sonrası aksan çipleri (All/US/UK/AU), parça sayacı, önceki/tekrar/sonraki; widget bileşenleri caption+speed+controls, autoStart kapalı, renkler tema tokenlarından.
 - Settings: Pronunciation (ses seçimi + önizleme, hız 0.5–1.4×, test), Real-world videos (onay aç/kapa + yasal linkler), Storage (toplu güncelleme), Account & sync, Data sources.
 
+**Hesap + Sync (Aşama 3)**
+- **Worker** (`worker/`, ad `vocabook-sync`, R2 bucket `vocabook-data`, `wrangler.jsonc`): `GET/PUT/DELETE /v1/notebook`. Google ID token RS256 imzası Google JWKS ile (Cache-Control süresince önbellek), `iss`, `aud` = `GOOGLE_CLIENT_ID`, `exp` (60 sn tolerans), `sub` sadece rakam. R2 yolu `users/<sub>/progress.json`. CORS `ALLOWED_ORIGINS` (virgüllü; prod: sadece `https://dmrgveli.github.io`; yerel geliştirme `.dev.vars` ile localhost). Gövde ≤ 2 MB (akış okunarak, Content-Length'e güvenmeden), şema doğrulaması (`src/schema.ts`; `enrichment` alanı reddedilir). PUT `If-Match: <etag>` → R2 `onlyIf.etagMatches`; ilk yazma `If-None-Match: *` → R2'de "yalnızca yoksa oluştur" yok, `head` kontrolü (küçük yarış penceresi local-first istemcilerce bir sonraki sync'te iyileşir). Testler: gerçek RSA anahtarıyla imzalanmış token'lar + bellek içi R2.
+- **İstemci** (`app/src/sync/`): `auth.ts` (GIS, `auto_select` + FedCM; token sadece bellekte; `localStorage['signed-in-hint']` = profil ipucu, token değil; süresi dolmadan 5 dk önce sessiz `prompt()` ile yenileme), `merge.ts` (saf, testli), `engine.ts` (GET → birleştir → yerel değişenleri yaz → fark varsa koşullu PUT; 412'de en fazla 4 deneme).
+- **Birleştirme kuralları:** kayıtlar `id` ile, yeni `updatedAt` kazanır; encounters/notes kendi `id`+`updatedAt`'ıyla tek tek; silme = tombstone; `lastViewedAt` en büyüğü; aynı kelime iki cihazda eklenmişse en eski kayıtta toplanır (çeviri/cümle boşsa doldurulur, hakimiyet en yükseği, etiket birleşimi), diğerleri tombstone olur.
+- **Sözlük verisi (`enrichment`) eşitlenmez** — 2 MB sınırını kelime başına birkaç KB yiyordu; her cihaz kendisi çeker (kelime sayfası açılınca otomatik). Silinen kayıtlar buluta küçük tombstone olarak gider.
+- **Hesap değişimi:** `localStorage['last-synced-account']` = son eşitlenen `sub`. Farklı hesapla girilip cihazda kelime varsa sync durur, Ayarlar'da seçim: "Add this computer's words" (birleştir) / "Use only this account's words" (yerel defteri buluttakiyle değiştir). Sessiz karışma yok.
+- **Tetikleyiciler:** yerel değişiklikten 2.5 sn sonra, girişte, pencere odağında, `online` olayında, 5 dk'da bir.
+- **Arayüz:** kenar çubuğu altında durum satırı (Saved on this device / Sign in to sync / Syncing… / Synced x min ago / Offline / Sync paused · action needed) → Ayarlar'a gider. Ayarlar'da "Account & sync" kartı en üstte: Google düğmesi (GIS `renderButton`), profil, Sync now, Sign out, Delete cloud copy.
+- **Yapılandırma (gizli değil):** `VITE_GOOGLE_CLIENT_ID`, `VITE_SYNC_URL` — yerelde `app/.env.local` (örnek `app/.env.example`), CI'da GitHub **repo variables** `GOOGLE_CLIENT_ID`, `SYNC_URL`. Boşsa uygulama "sync not set up" der, her şey yerelde çalışır. Worker için `CLOUDFLARE_ACCOUNT_ID` repo variable + `CLOUDFLARE_API_TOKEN` secret; token yoksa `worker.yml` test eder ama deploy etmez.
+- CSP'ye `style-src https://accounts.google.com/gsi/style` eklendi. Worker adresi belli olunca `connect-src`'deki `*.workers.dev` tam adrese daraltılacak.
+- `worker/` geliştirme bağımlılığı wrangler → miniflare → sharp üzerinden "high" npm audit uyarısı var (librsvg CVE). Yalnızca yerel araç, deploy edilen Worker'a girmez; `npm audit fix --force` wrangler'ı çok eski sürüme düşürdüğü için uygulanmadı, Dependabot'a bırakıldı.
+
 ## Kullanıcının yapacağı tek seferlik işler
 
 - [x] GitHub hesabını Claude'a bağlamak (gh CLI, `dmrgveli`)
 - [x] Herkese açık repo: `dmrgveli/vocabook`
 - [x] Pages → Source: "GitHub Actions" (API ile açıldı)
 - [ ] Repo Settings → Code security: Secret scanning + Dependabot alerts açık mı kontrol et (dependabot.yml sadece güncelleme PR'larını açar)
-- [ ] Google Cloud Console'da OAuth Client ID (Web uygulaması) oluşturmak, yetkili kaynakları eklemek
-- [ ] Cloudflare API token'ı oluşturup repoya `CLOUDFLARE_API_TOKEN` secret'ı olarak eklemek (token Claude ile paylaşılmaz)
+- [ ] Google Cloud Console'da OAuth Client ID (Web uygulaması) oluşturmak; yetkili JavaScript kaynakları `https://dmrgveli.github.io`, `http://localhost:5173`, `http://localhost`; OAuth izin ekranını "In production"a almak (sadece temel kapsamlar, doğrulama gerekmez) ya da kendini test kullanıcısı eklemek
+- [ ] Cloudflare hesabı + R2'yi etkinleştirmek (ücretsiz katman için de ödeme yöntemi istenir)
+- [ ] Cloudflare API token'ı oluşturup repoya `CLOUDFLARE_API_TOKEN` secret'ı olarak eklemek (token Claude ile paylaşılmaz) — otomatik Worker deploy'u için; ilk kurulum `wrangler login` ile de yapılabilir
 
 ## Açık sorular
 
 - Kaynak türü (`sourceKind`: show/book/work…) hızlı eklemede sorulsun mu, yoksa sadece kelime sayfasında mı?
 - Elle açık/koyu tema değiştirici istenir mi? (Şu an sistem ayarını izliyor.)
 - YouGlish için partner anahtarı / reklam ayarı gerekecek mi? (Şu an anahtarsız, `setAdsLocation` çağrılmıyor.)
-- R2 bucket adı ve Worker adı
+- R2 bucket adı ve Worker adı (varsayılan seçildi: `vocabook-data`, `vocabook-sync`; değiştirilebilir)
 - Uygulamanın adı (repo `vocabook`, arayüzde şimdilik "Vocab Notebook" — birleştirilsin mi?)
