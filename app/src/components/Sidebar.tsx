@@ -37,8 +37,8 @@ export function Sidebar({ entries }: { entries: Entry[] }) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <span className="brand-mark">v</span>
-        Vocab Notebook
+        <img className="brand-logo" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={34} height={34} />
+        Vocabook
       </div>
 
       <button className="btn btn-marker add-btn" onClick={openQuickAdd}>

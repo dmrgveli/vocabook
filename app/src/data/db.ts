@@ -14,6 +14,7 @@ interface NotebookDB extends DBSchema {
 let dbPromise: Promise<IDBPDatabase<NotebookDB>> | undefined
 
 function db() {
+  // The database keeps its original name: renaming it would hide existing notebooks.
   dbPromise ??= openDB<NotebookDB>('vocab-notebook', 1, {
     upgrade(db) {
       const store = db.createObjectStore('entries', { keyPath: 'id' })
