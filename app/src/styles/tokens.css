@@ -1,0 +1,72 @@
+/* Design tokens. Plain paper, ink outlines, a highlighter yellow and pastel fills
+   that carry meaning: the K band (how common a word is) colours its card everywhere. */
+
+:root {
+  --font-word: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --font-ui: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+
+  --paper: #fbf8f3;
+  --card: #ffffff;
+  --ink: #1b1a1f;
+  --ink-2: #55525c;
+  --ink-3: #8f8b96;
+  --line: #1b1a1f;
+  --line-soft: #e8e2d8;
+  --hover: #f3eee6;
+
+  --marker: #ffd84d;
+  --marker-ink: #1b1a1f;
+  --accent: #ff5a36;
+  --danger: #d63a2a;
+
+  --pop: 3px 3px 0 var(--line);
+  --pop-lg: 5px 5px 0 var(--line);
+
+  /* K bands: fill + ink */
+  --k1: #c8f0d4;    --k1-ink: #1f7a3d;
+  --k3: #cfe6ff;    --k3-ink: #1d5fa8;
+  --k5: #e2d9ff;    --k5-ink: #5b3fb8;
+  --k10: #ffe0c7;   --k10-ink: #b2541a;
+  --k20: #fff1a8;   --k20-ink: #8a6d00;
+  --rare: #ffd3e2;  --rare-ink: #b0255d;
+  --unknown: #f1ede6; --unknown-ink: #8f8b96;
+
+  /* mastery: recognize → understand → use */
+  --mastery-recognize: #ffcf5c;
+  --mastery-understand: #ff9b54;
+  --mastery-use: #ff5a36;
+
+  --r-s: 8px;
+  --r-m: 12px;
+  --r-l: 16px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #161519;
+    --card: #1f1e23;
+    --ink: #f2efe9;
+    --ink-2: #b8b3ab;
+    --ink-3: #7e7a84;
+    --line: #d9d4cc;
+    --line-soft: #333139;
+    --hover: #26252b;
+
+    --marker: #ffd84d;
+    --marker-ink: #1b1a1f;
+    --accent: #ff7a5c;
+    --danger: #ff7b6b;
+
+    --pop: 3px 3px 0 #000;
+    --pop-lg: 5px 5px 0 #000;
+
+    --k1: #20382a;    --k1-ink: #7fdc9d;
+    --k3: #1e2f45;    --k3-ink: #8cc2ff;
+    --k5: #2c2645;    --k5-ink: #b7a6ff;
+    --k10: #3d2b1f;   --k10-ink: #ffb07a;
+    --k20: #3a3418;   --k20-ink: #f3d55b;
+    --rare: #3d2030;  --rare-ink: #ff8fb7;
+    --unknown: #26252b; --unknown-ink: #7e7a84;
+  }
+}

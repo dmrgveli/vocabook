@@ -1,0 +1,358 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.1;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--marker);
+  color: var(--marker-ink);
+}
+
+.word-font {
+  font-family: var(--font-word);
+  font-weight: 400;
+}
+
+.muted {
+  color: var(--ink-2);
+}
+
+.faint {
+  color: var(--ink-3);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.label-sm {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0;
+}
+
+/* highlighter stroke behind text */
+.marked {
+  background: linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 92%, transparent 92%);
+  padding: 0 2px;
+}
+
+kbd {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid currentColor;
+  opacity: 0.6;
+}
+
+/* ---------- boxes ---------- */
+
+.box {
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-l);
+}
+
+.box-pop {
+  box-shadow: var(--pop);
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 15px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease), background 0.15s;
+}
+
+.btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--pop);
+}
+
+.btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-marker {
+  background: var(--marker);
+  color: var(--marker-ink);
+  border-color: var(--marker-ink);
+}
+
+.btn-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.btn-quiet:hover {
+  background: var(--hover);
+  color: var(--ink);
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-danger {
+  color: var(--danger);
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon-btn:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+/* ---------- fields ---------- */
+
+.field {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--r-m);
+  border: 1.5px solid var(--line-soft);
+  background: var(--card);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+textarea.field {
+  height: auto;
+  min-height: 72px;
+  padding: 9px 12px;
+  resize: vertical;
+}
+
+.field::placeholder {
+  color: var(--ink-3);
+}
+
+.field:focus {
+  outline: none;
+  border-color: var(--line);
+  box-shadow: var(--pop);
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.label .optional {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+/* ---------- chips & badges ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line-soft);
+  background: var(--card);
+  font-size: 13px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+button.chip:hover {
+  border-color: var(--line);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+/* every K band paints with its own fill + ink */
+.tone-k1 { --fill: var(--k1); --tone: var(--k1-ink); }
+.tone-k3 { --fill: var(--k3); --tone: var(--k3-ink); }
+.tone-k5 { --fill: var(--k5); --tone: var(--k5-ink); }
+.tone-k10 { --fill: var(--k10); --tone: var(--k10-ink); }
+.tone-k20 { --fill: var(--k20); --tone: var(--k20-ink); }
+.tone-rare { --fill: var(--rare); --tone: var(--rare-ink); }
+.tone-unknown { --fill: var(--unknown); --tone: var(--unknown-ink); }
+
+.k-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  padding: 1px 8px;
+  border-radius: 7px;
+  border: 1.5px solid var(--tone);
+  color: var(--tone);
+  background: var(--fill);
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.k-badge-lg {
+  font-size: 22px;
+  padding: 2px 12px;
+  border-radius: 10px;
+  rotate: -3deg;
+  box-shadow: 2px 2px 0 var(--tone);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  border: 1.5px solid var(--tone, var(--line));
+  background: var(--fill, var(--card));
+}
+
+.mastery-meter {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.mastery-meter span {
+  width: 14px;
+  height: 6px;
+  border-radius: 99px;
+  border: 1.2px solid currentColor;
+  opacity: 0.35;
+}
+
+.mastery-meter[data-level='recognize'] span:nth-child(1),
+.mastery-meter[data-level='understand'] span:nth-child(-n + 2),
+.mastery-meter[data-level='use'] span {
+  background: currentColor;
+  opacity: 1;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--line-soft);
+  border-top-color: var(--ink);
+  animation: spin 0.8s linear infinite;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.skeleton {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--line-soft) 0%, var(--hover) 50%, var(--line-soft) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
