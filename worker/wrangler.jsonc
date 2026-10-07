@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vocabook-sync",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "vocabook-data" }],
+  "vars": {
+    // Not secret: the same OAuth client ID the app uses. Filled in once it exists.
+    "GOOGLE_CLIENT_ID": "",
+    "ALLOWED_ORIGINS": "https://dmrgveli.github.io"
+  },
+  "observability": { "enabled": true }
+}

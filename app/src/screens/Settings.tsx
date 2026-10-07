@@ -3,6 +3,7 @@ import { BookA, Cloud, Database, ExternalLink, RefreshCw, Volume2, Clapperboard 
 import { useState, type ReactNode } from 'react'
 import { enrichEntry } from '../api/enrich'
 import { useAppState } from '../app/state'
+import { AccountCard } from '../components/AccountCard'
 import type { Entry } from '../data/model'
 import { canSpeak, setSpeechPrefs, speak, useEnglishVoices, useSpeechPrefs } from '../speech'
 import { GOOGLE_PRIVACY_URL, setYouGlishConsent, useYouGlishConsent, YOUTUBE_TERMS_URL } from '../youglish'
@@ -29,18 +30,22 @@ export function Settings({ entries }: { entries: Entry[] }) {
       </header>
 
       <div className="settings-grid">
-        <Card icon={<Volume2 size={18} />} title="Pronunciation" index={0}>
+        <Card icon={<Cloud size={18} />} title="Account & sync" index={0}>
+          <AccountCard />
+        </Card>
+
+        <Card icon={<Volume2 size={18} />} title="Pronunciation" index={1}>
           <PronunciationSettings />
         </Card>
 
-        <Card icon={<Clapperboard size={18} />} title="Real-world videos" index={1}>
+        <Card icon={<Clapperboard size={18} />} title="Real-world videos" index={2}>
           <YouGlishSettings />
         </Card>
 
-        <Card icon={<Database size={18} />} title="Storage" index={2}>
+        <Card icon={<Database size={18} />} title="Storage" index={3}>
           <p className="muted">
             {entries.length} {entries.length === 1 ? 'word' : 'words'} saved on this device. Dictionary data is copied into each
-            word, so your notebook keeps working offline.
+            word, so your notebook keeps working offline. It is not synced: each computer fetches its own.
           </p>
           {missing.length > 0 && (
             <button className="btn" onClick={refetch} disabled={refreshing}>
@@ -50,12 +55,6 @@ export function Settings({ entries }: { entries: Entry[] }) {
           )}
         </Card>
 
-        <Card icon={<Cloud size={18} />} title="Account & sync" index={3}>
-          <p className="muted">
-            Your notebook lives in this browser for now. Google sign-in and sync across devices are coming in a later version.
-          </p>
-          <span className="chip">Not signed in</span>
-        </Card>
 
         <Card icon={<BookA size={18} />} title="Data sources" index={4}>
           <ul className="sources">

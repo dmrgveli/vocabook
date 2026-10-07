@@ -10,6 +10,11 @@ import './styles/layout.css'
 import './styles/screens.css'
 import { App } from './app/App'
 import { AppStateProvider } from './app/state'
+import { initAuth } from './sync/auth'
+import { startSync } from './sync/engine'
+
+startSync()
+void initAuth()
 
 // Hash router: GitHub Pages returns 404 for sub-paths.
 createRoot(document.getElementById('root')!).render(
