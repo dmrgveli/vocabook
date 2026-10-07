@@ -7,6 +7,7 @@ import { MOD_KEY } from '../components/Sidebar'
 import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
 import { K_BANDS } from '../data/frequency'
 import { alive, MASTERY_LABELS, type Entry } from '../data/model'
+import { wordPath } from '../data/paths'
 import { EMPTY_FILTERS, entrySource, filterEntries, groupByDay, hasActiveFilters, localDay } from '../data/notebook'
 
 const dayFormat = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -40,7 +41,7 @@ export function Notebook({ entries }: { entries: Entry[] }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  if (entries.length === 0) return <EmptyNotebook onAdd={openQuickAdd} />
+  if (entries.length === 0) return <EmptyNotebook onAdd={() => openQuickAdd()} />
 
   const activeChips = [
     filters.band && { key: 'band', label: K_BANDS.find((b) => b.id === filters.band)!.label },
@@ -130,7 +131,7 @@ function WordCard({ entry }: { entry: Entry }) {
     <article className={`word-card ${toneClass(entry.frequency)}`}>
       <div className="word-card-head">
         {/* the link stretches over the whole card; the speak button sits above it */}
-        <Link to={`/word/${entry.id}`} className="word-font word-card-word card-link" lang="en">
+        <Link to={wordPath(entry.word)} className="word-font word-card-word card-link" lang="en">
           {entry.word}
         </Link>
         <KBadge frequency={entry.frequency} />

@@ -41,7 +41,7 @@ export function Sidebar({ entries }: { entries: Entry[] }) {
         Vocabook
       </div>
 
-      <button className="btn btn-marker add-btn" onClick={openQuickAdd}>
+      <button className="btn btn-marker add-btn" onClick={() => openQuickAdd()}>
         <Plus size={17} strokeWidth={2.5} /> Add word <kbd>{MOD_KEY} K</kbd>
       </button>
 

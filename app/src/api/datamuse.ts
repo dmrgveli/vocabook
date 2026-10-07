@@ -11,6 +11,8 @@ interface DatamuseWord {
   score?: number
   tags?: string[]
   defs?: string[]
+  /** Set when the definitions belong to the base form ("prospered" → "prosper"). */
+  defHeadword?: string
 }
 
 export interface Suggestion {
@@ -85,6 +87,50 @@ export async function wordInfo(word: string): Promise<WordInfo> {
   return { frequency: parseFrequency(w), ipa: ipa ? `/${ipa.trim()}/` : undefined, meanings: parseDefinitions(w.defs) }
 }
 
+export interface Peek {
+  /** Base form shown and added to the notebook ("prosper"). */
+  word: string
+  /** The form that was clicked, when it differs ("prospered"). */
+  form?: string
+  frequency?: number
+  ipa?: string
+  partOfSpeech?: string
+  definition?: string
+}
+
+const peekCache = new Map<string, Promise<Peek>>()
+
+/** A short look-up for the word pop-up: base form, frequency, IPA and one definition. */
+export function peek(clicked: string): Promise<Peek> {
+  const form = clicked.trim().toLowerCase()
+  let pending = peekCache.get(form)
+  if (!pending) {
+    pending = (async () => {
+      const [w] = await getJson<DatamuseWord[]>(`${BASE}/words?sp=${encodeURIComponent(form)}&md=dfr&ipa=1&max=1`)
+      const head = w?.defHeadword?.toLowerCase()
+      const base = head && head !== form ? await wordInfo(head) : undefined
+      const own: WordInfo = w && w.word.toLowerCase() === form
+        ? { frequency: parseFrequency(w), ipa: tag(w, 'ipa_pron:') ? `/${tag(w, 'ipa_pron:')!.trim()}/` : undefined, meanings: parseDefinitions(w.defs) }
+        : { meanings: [] }
+      const info = base ?? own
+      const meaning = info.meanings[0] ?? own.meanings[0]
+      return {
+        word: base ? head! : form,
+        form: base ? form : undefined,
+        frequency: info.frequency,
+        ipa: info.ipa,
+        partOfSpeech: meaning?.partOfSpeech,
+        definition: meaning?.definitions[0]?.definition,
+      }
+    })().catch((err) => {
+      peekCache.delete(form)
+      throw err
+    })
+    peekCache.set(form, pending)
+  }
+  return pending
+}
+
 async function related(rel: string, word: string, keep: (w: string) => boolean, max: number): Promise<Collocation[]> {
   const words = await getJson<DatamuseWord[]>(`${BASE}/words?${rel}=${encodeURIComponent(word)}&max=60`)
   return words
@@ -115,6 +161,9 @@ const PREPOSITIONS = new Set(
 )
 
 const meaningful = (w: string) => !FUNCTION_WORDS.has(w) && !PREPOSITIONS.has(w) && w.length > 1
+
+/** Words not worth looking up on their own ("the", "of", "would"). */
+export const isFunctionWord = (w: string) => FUNCTION_WORDS.has(w) || PREPOSITIONS.has(w)
 
 /** After the word, keep content words and the few most frequent prepositions ("thrive on", "decision about"). */
 function keepFollower(maxPrepositions = 4) {

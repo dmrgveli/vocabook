@@ -5,13 +5,16 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { enrichEntry, isEnriching } from '../api/enrich'
 import { useAppState } from '../app/state'
 import { EditableText } from '../components/EditableText'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { SourceInput } from '../components/SourceInput'
 import { KBadge, MasteryControl, RecordingButton, SpeakButton } from '../components/ui'
+import { LinkedText, PeekWord } from '../components/WordPeek'
 import { YouGlishPanel } from '../components/YouGlishPanel'
 import { deleteEntry, markViewed, updateEntry } from '../data/db'
 import { alive, createEncounter, createNote, isEnrichmentCurrent, now, type Collocation, type Enrichment, type Entry } from '../data/model'
 import { allSources } from '../data/notebook'
-import { useEntries, useEntry } from '../hooks'
+import { parseWordParam, wordPath } from '../data/paths'
+import { useEntries, useEntryAt } from '../hooks'
 import { speak } from '../speech'
 
 const dateFormat = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -20,13 +23,20 @@ const formatDate = (d: string) => dateFormat.format(new Date(`${d.slice(0, 10)}T
 type Update = (change: (e: Entry) => Entry) => Promise<unknown>
 
 export function WordPage() {
-  const { id } = useParams()
-  const entry = useEntry(id)
+  const { param } = useParams()
+  const entry = useEntryAt(param)
+  const navigate = useNavigate()
 
   useEffect(() => {
     document.querySelector('.main')?.scrollTo(0, 0)
-    if (id) markViewed(id)
-  }, [id])
+  }, [param])
+
+  useEffect(() => {
+    if (!entry) return
+    void markViewed(entry.id)
+    // Old links used the entry id; show the readable address instead.
+    if (param && 'id' in parseWordParam(param)) navigate(wordPath(entry.word), { replace: true })
+  }, [entry?.id])
 
   if (entry === undefined) return <div className="page" />
   if (entry === null)
@@ -121,7 +131,9 @@ function WordPageContent({ entry }: { entry: Entry }) {
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="videos-inner box">
-              <YouGlishPanel word={entry.word} />
+              <ErrorBoundary fallback={<p className="faint">The videos stopped working. Close and open them again.</p>}>
+                <YouGlishPanel word={entry.word} />
+              </ErrorBoundary>
             </div>
           </motion.section>
         )}
@@ -233,7 +245,7 @@ function Dictionary({ entry }: { entry: Entry }) {
   return (
     <>
       <Panel title="Definitions" aside={refresh}>
-        <Definitions enrichment={e} />
+        <Definitions enrichment={e} word={entry.word} />
         {e.definitionsFrom === 'datamuse' && (
           <p className="source-note faint">Definitions from Datamuse — Free Dictionary was unavailable or had no entry.</p>
         )}
@@ -261,7 +273,7 @@ function Dictionary({ entry }: { entry: Entry }) {
   )
 }
 
-function Definitions({ enrichment }: { enrichment: Enrichment }) {
+function Definitions({ enrichment, word }: { enrichment: Enrichment; word: string }) {
   if (enrichment.meanings.length === 0) return <p className="faint">No definitions found for this word.</p>
   return (
     <div className="meanings">
@@ -271,7 +283,9 @@ function Definitions({ enrichment }: { enrichment: Enrichment }) {
           <ol>
             {m.definitions.slice(0, 4).map((d, i) => (
               <li key={i}>
-                <span>{d.definition}</span>
+                <span>
+                  <LinkedText text={d.definition} skip={word} />
+                </span>
                 {d.example && (
                   <span className="example" lang="en">
                     <span className="word-font">“{d.example}”</span> <SpeakButton text={d.example} label="Read the example aloud" />
@@ -361,9 +375,7 @@ function WordChips({ label, words }: { label: string; words: string[] }) {
       <span className="faint coll-label">{label}</span>
       <div className="row" style={{ gap: 6 }}>
         {words.map((w) => (
-          <span key={w} className="chip" lang="en">
-            {w}
-          </span>
+          <PeekWord key={w} word={w} chip />
         ))}
       </div>
     </div>

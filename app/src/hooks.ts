@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { suggest, type Suggestion } from './api/datamuse'
-import { getEntry, listEntries, subscribe } from './data/db'
+import { findByWord, getEntry, listEntries, subscribe } from './data/db'
+import { parseWordParam } from './data/paths'
 import type { Entry } from './data/model'
 
 /** All notebook entries; reloads when IndexedDB changes. undefined = loading. */
@@ -19,20 +20,23 @@ export function useEntries(): Entry[] | undefined {
   return entries
 }
 
-/** A single entry. undefined = loading, null = not found. */
-export function useEntry(id: string | undefined): Entry | null | undefined {
+/** The entry a /word/:param URL points to (by word, or by id for old links). */
+export function useEntryAt(param: string | undefined): Entry | null | undefined {
   const [entry, setEntry] = useState<Entry | null>()
   useEffect(() => {
-    if (!id) return setEntry(null)
+    if (!param) return setEntry(null)
+    const target = parseWordParam(param)
     let active = true
-    const load = () => getEntry(id).then((e) => active && setEntry(e ?? null))
+    const load = () =>
+      ('id' in target ? getEntry(target.id) : findByWord(target.word)).then((e) => active && setEntry(e ?? null))
+    setEntry(undefined)
     load()
     const unsubscribe = subscribe(load)
     return () => {
       active = false
       unsubscribe()
     }
-  }, [id])
+  }, [param])
   return entry
 }
 

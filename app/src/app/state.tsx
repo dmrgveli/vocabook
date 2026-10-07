@@ -14,11 +14,18 @@ interface AppState {
   filters: Filters
   setFilters: (update: (f: Filters) => Filters) => void
   quickAddOpen: boolean
-  openQuickAdd: () => void
+  /** A word to start with, e.g. one picked from a definition. */
+  quickAddPrefill?: QuickAddPrefill
+  openQuickAdd: (prefill?: QuickAddPrefill) => void
   closeQuickAdd: () => void
   toasts: Toast[]
   toast: (message: string, action?: Toast['action']) => void
   dismissToast: (id: number) => void
+}
+
+export interface QuickAddPrefill {
+  word: string
+  frequency?: number
 }
 
 const Ctx = createContext<AppState | null>(null)
@@ -28,6 +35,7 @@ let toastId = 0
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [filters, setFiltersState] = useState<Filters>(EMPTY_FILTERS)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const [quickAddPrefill, setQuickAddPrefill] = useState<QuickAddPrefill>()
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), [])
@@ -40,7 +48,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [dismissToast],
   )
 
-  const openQuickAdd = useCallback(() => setQuickAddOpen(true), [])
+  const openQuickAdd = useCallback((prefill?: QuickAddPrefill) => {
+    setQuickAddPrefill(prefill)
+    setQuickAddOpen(true)
+  }, [])
   const closeQuickAdd = useCallback(() => setQuickAddOpen(false), [])
 
   const value = useMemo<AppState>(
@@ -48,13 +59,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       filters,
       setFilters: (update) => setFiltersState(update),
       quickAddOpen,
+      quickAddPrefill,
       openQuickAdd,
       closeQuickAdd,
       toasts,
       toast,
       dismissToast,
     }),
-    [filters, quickAddOpen, openQuickAdd, closeQuickAdd, toasts, toast, dismissToast],
+    [filters, quickAddOpen, quickAddPrefill, openQuickAdd, closeQuickAdd, toasts, toast, dismissToast],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

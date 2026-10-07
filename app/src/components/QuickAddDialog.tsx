@@ -4,17 +4,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { enrichEntry } from '../api/enrich'
 import type { Suggestion } from '../api/datamuse'
-import { useAppState } from '../app/state'
+import { useAppState, type QuickAddPrefill } from '../app/state'
 import { findByWord, putEntry, updateEntry } from '../data/db'
 import { createEncounter, createEntry, normalizeWord, type Entry } from '../data/model'
 import { allSources } from '../data/notebook'
+import { wordPath } from '../data/paths'
 import { useEntries, useSuggestions } from '../hooks'
 import { SourceInput } from './SourceInput'
 import { KBadge, SpeakButton } from './ui'
 
 /** Command-palette style quick add. Goal: a new word in under 10 seconds. */
 export function QuickAddDialog() {
-  const { quickAddOpen, closeQuickAdd } = useAppState()
+  const { quickAddOpen, quickAddPrefill, closeQuickAdd } = useAppState()
   return (
     <AnimatePresence>
       {quickAddOpen && (
@@ -36,7 +37,7 @@ export function QuickAddDialog() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ type: 'spring', stiffness: 460, damping: 30 }}
           >
-            <QuickAddForm onDone={closeQuickAdd} />
+            <QuickAddForm onDone={closeQuickAdd} prefill={quickAddPrefill} />
           </motion.div>
         </motion.div>
       )}
@@ -44,7 +45,7 @@ export function QuickAddDialog() {
   )
 }
 
-function QuickAddForm({ onDone }: { onDone: () => void }) {
+function QuickAddForm({ onDone, prefill }: { onDone: () => void; prefill?: QuickAddPrefill }) {
   const navigate = useNavigate()
   const { toast } = useAppState()
   const entries = useEntries()
@@ -65,6 +66,11 @@ function QuickAddForm({ onDone }: { onDone: () => void }) {
   const sourceValue = source ?? recent[0] ?? ''
 
   useEffect(() => setHighlight(0), [items])
+  // Opened with a word already chosen (from the word pop-up): go straight to the details.
+  // Runs once, when the dialog opens.
+  useEffect(() => {
+    if (prefill) void pick(prefill)
+  }, [])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onDone()
     window.addEventListener('keydown', onKey)
@@ -88,14 +94,14 @@ function QuickAddForm({ onDone }: { onDone: () => void }) {
     if (existing) {
       id = existing.id
       await updateEntry(id, (entry) => ({ ...entry, encounters: [...entry.encounters, encounter] }))
-      toast(`New encounter added to “${existing.word}”`, { label: 'Open', run: () => navigate(`/word/${id}`) })
+      toast(`New encounter added to “${existing.word}”`, { label: 'Open', run: () => navigate(wordPath(existing.word)) })
     } else {
       const entry = createEntry({ word: picked.word, frequency: picked.frequency, translation, encounter })
       id = entry.id
       await putEntry(entry)
       // Dictionary data is fetched in the background; the word is saved even if the APIs are down.
       enrichEntry(id).catch(() => undefined)
-      toast(`“${entry.word}” added to your notebook`, { label: 'Open', run: () => navigate(`/word/${id}`) })
+      toast(`“${entry.word}” added to your notebook`, { label: 'Open', run: () => navigate(wordPath(entry.word)) })
     }
     onDone()
   }

@@ -970,3 +970,100 @@ p:hover .hover-only,
 .word-card .tip {
   z-index: 1;
 }
+
+/* ---------- word peek ---------- */
+
+.peek-word {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 2px;
+  background-image: linear-gradient(transparent 62%, transparent 62%);
+  transition: background-image 0.15s;
+}
+
+.peek-word:hover,
+.peek-word:focus-visible {
+  background-image: linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 92%, transparent 92%);
+}
+
+.peek-chip {
+  cursor: pointer;
+}
+
+.peek-chip:hover {
+  border-color: var(--line);
+  background: var(--marker);
+  color: var(--marker-ink);
+}
+
+.peek {
+  position: fixed;
+  z-index: 40;
+  padding: 12px 14px 10px;
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.peek-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.peek-word-title {
+  font-size: 26px;
+  line-height: 1.05;
+  margin-right: 2px;
+  overflow-wrap: anywhere;
+}
+
+.peek-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+}
+
+.peek-pos {
+  padding: 0 7px;
+  border-radius: 5px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.peek-text {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.peek-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.peek-actions .btn {
+  height: 30px;
+  padding: 0 11px;
+}
+
+.peek-add {
+  background: var(--marker);
+  color: var(--marker-ink);
+  border-color: var(--marker-ink);
+}

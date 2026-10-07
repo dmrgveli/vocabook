@@ -2,7 +2,7 @@ import { motion } from 'motion/react'
 import { Mic, Snail, Volume2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { describeK, formatFrequency, formatK, frequencyK, kBand } from '../data/frequency'
-import { MASTERY_LABELS, MASTERY_LEVELS, type Mastery } from '../data/model'
+import { MASTERY_HINTS, MASTERY_LABELS, MASTERY_LEVELS, type Mastery } from '../data/model'
 import { canSpeak, speak, useSpeaking } from '../speech'
 
 /** CSS class that paints an element in its K band's colours. */
@@ -40,7 +40,7 @@ export function MasteryMeter({ level }: { level: Mastery }) {
       className="mastery-meter"
       data-level={level}
       style={{ color: `var(--mastery-${level})` }}
-      title={MASTERY_LABELS[level]}
+      title={`${MASTERY_LABELS[level]}: ${MASTERY_HINTS[level]}`}
       aria-label={`Mastery: ${MASTERY_LABELS[level]}`}
     >
       <span />
@@ -55,7 +55,7 @@ export function MasteryControl({ value, onChange }: { value: Mastery; onChange: 
   return (
     <div className="segmented" role="radiogroup" aria-label="How well do you know this word?">
       {MASTERY_LEVELS.map((m) => (
-        <button key={m} role="radio" aria-checked={value === m} data-level={m} onClick={() => onChange(m)}>
+        <button key={m} role="radio" aria-checked={value === m} data-level={m} title={MASTERY_HINTS[m]} onClick={() => onChange(m)}>
           {value === m && (
             <motion.span layoutId="mastery-thumb" className="segmented-thumb" transition={{ type: 'spring', stiffness: 500, damping: 36 }} />
           )}

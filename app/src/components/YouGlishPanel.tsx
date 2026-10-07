@@ -98,11 +98,22 @@ function Widget({ word }: { word: string }) {
       })
       .catch(() => !cancelled && setStatus('error'))
 
+    const hostEl = host.current
     return () => {
       cancelled = true
-      widget.current?.close()
+      // YouGlish's close() looks the element up by id and empties it. When the panel is
+      // being removed, React has already detached that element, so close() would throw
+      // on null and take the whole page down. Without the element there is nothing left
+      // to close: the video iframe went with it.
+      if (document.getElementById(elementId)) {
+        try {
+          widget.current?.close()
+        } catch {
+          // the widget is gone either way
+        }
+      }
       widget.current = null
-      if (host.current) host.current.innerHTML = ''
+      if (hostEl) hostEl.innerHTML = ''
     }
   }, [elementId, word])
 

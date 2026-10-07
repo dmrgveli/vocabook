@@ -4,10 +4,17 @@
 export const MASTERY_LEVELS = ['recognize', 'understand', 'use'] as const
 export type Mastery = (typeof MASTERY_LEVELS)[number]
 
+// The stored values stay recognize/understand/use (sync, old data); only the labels changed.
 export const MASTERY_LABELS: Record<Mastery, string> = {
-  recognize: 'Recognize',
-  understand: 'Understand',
-  use: 'Use',
+  recognize: 'Seen it',
+  understand: 'Know it',
+  use: 'Use it',
+}
+
+export const MASTERY_HINTS: Record<Mastery, string> = {
+  recognize: 'I recognize it when I read or hear it',
+  understand: 'I know what it means',
+  use: 'I can use it in my own sentences',
 }
 
 export const SOURCE_KINDS = ['show', 'movie', 'book', 'article', 'podcast', 'work', 'conversation', 'other'] as const

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { markViewed } from '../data/db'
 import type { Entry } from '../data/model'
+import { wordPath } from '../data/paths'
 import {
   alreadyShownThisVisit,
   markShownThisVisit,
@@ -118,7 +119,7 @@ function ReminderWord({ entry, onOpen }: { entry: Entry; onOpen: () => void }) {
           lang="en"
           onClick={() => {
             onOpen()
-            navigate(`/word/${entry.id}`)
+            navigate(wordPath(entry.word))
           }}
           title="Open this word"
         >

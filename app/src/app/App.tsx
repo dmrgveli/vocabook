@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { QuickAddDialog } from '../components/QuickAddDialog'
 import { ReminderPopup } from '../components/ReminderPopup'
 import { Sidebar } from '../components/Sidebar'
 import { Toaster } from '../components/Toaster'
+import { WordPeek } from '../components/WordPeek'
 import { useEntries } from '../hooks'
 import { Notebook } from '../screens/Notebook'
 import { Settings } from '../screens/Settings'
@@ -42,11 +44,16 @@ export function App() {
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               >
+<ErrorBoundary
+                  resetKey={location.pathname}
+                  fallback={<p className="page muted">Something went wrong on this page. Try going back to your notebook.</p>}
+                >
                 <Routes location={location}>
-                  <Route path="/word/:id" element={<WordPage />} />
+                  <Route path="/word/:param" element={<WordPage />} />
                   <Route path="/settings" element={<Settings entries={entries} />} />
                   <Route path="*" element={<Notebook entries={entries} />} />
                 </Routes>
+                </ErrorBoundary>
               </motion.div>
             </AnimatePresence>
           )}
@@ -54,6 +61,7 @@ export function App() {
       </div>
       <QuickAddDialog />
       <ReminderPopup entries={entries} />
+      <WordPeek />
       <Toaster />
     </>
   )
