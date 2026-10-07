@@ -57,15 +57,17 @@ GitHub repo (herkese açık)
                                             R2: users/<google-sub>/progress.json
 ```
 
+- **Yayın (7 Ekim 2026):** repo https://github.com/dmrgveli/vocabook (herkese açık), site **https://dmrgveli.github.io/vocabook/**. `main`'e her push → `.github/workflows/pages.yml` (test + build + deploy). Pages kaynağı: GitHub Actions.
 - **Ön yüz:** Vite + React, `base: '/<repo-adi>/'`, hash router (GitHub Pages alt sayfa 404 sorunu yüzünden). Local-first: veri önce IndexedDB'ye yazılır, arka planda sync.
 - **Depolama:** R2 ücretsiz kotası kullanılıyor. R2'de **sadece kullanıcının ilerleme/defter verisi** tutulur; görsel vb. dosya yok.
-- **Giriş:** Google Identity Services. Client ID gizli değil, ön yüzde durabilir. Yetkili JavaScript kaynakları: `https://<kullanici>.github.io` ve `http://localhost:5173`.
+- **Giriş:** Google Identity Services. Client ID gizli değil, ön yüzde durabilir. Yetkili JavaScript kaynakları: `https://dmrgveli.github.io` ve `http://localhost:5173`.
+- **Git/GitHub (bu makine):** Homebrew yok; GitHub CLI `~/.local/gh/gh_2.102.0_macOS_arm64/bin/gh` (resmî sürüm, SHA-256 doğrulandı), hesap `dmrgveli`, git kimlik bilgisi `gh auth setup-git` ile. Kullanıcının GitHub e-posta gizliliği açık → commit yazarı `Veli <97388561+dmrgveli@users.noreply.github.com>` (repo-yerel git config); gerçek e-posta ile push reddedilir. Kullanıcı Terminal paneline yazamıyor → etkileşimli komutlar yerine `--web` + `< /dev/null` gibi sorusuz yollar kullan.
 
 ## Güvenlik kuralları
 
 1. Worker her istekte Google ID token'ını doğrular: imza (Google açık anahtarları), `aud` = Client ID, `iss` = Google, süre.
 2. R2 yolu **asla istemciden alınmaz**; her zaman token'daki `sub`'dan üretilir (e-posta değil).
-3. CORS sadece `https://<kullanici>.github.io` kaynağına izin verir.
+3. CORS sadece `https://dmrgveli.github.io` kaynağına izin verir.
 4. Gelen veri için boyut sınırı (~2 MB), JSON ve şema doğrulaması.
 5. Sync çakışmaları: R2 ETag ile koşullu yazma; çakışmada istemci birleştirip tekrar dener. Kayıtlarda `updatedAt`, silmelerde `deletedAt`.
 6. Kullanıcı notları metin olarak gösterilir (`dangerouslySetInnerHTML` yok).
@@ -179,9 +181,10 @@ app/
 
 ## Kullanıcının yapacağı tek seferlik işler
 
-- [ ] GitHub hesabını Claude'a bağlamak
-- [ ] Boş, herkese açık bir repo oluşturmak (yerelde henüz `git init` yapılmadı)
-- [ ] Settings → Pages → Source: "GitHub Actions"
+- [x] GitHub hesabını Claude'a bağlamak (gh CLI, `dmrgveli`)
+- [x] Herkese açık repo: `dmrgveli/vocabook`
+- [x] Pages → Source: "GitHub Actions" (API ile açıldı)
+- [ ] Repo Settings → Code security: Secret scanning + Dependabot alerts açık mı kontrol et (dependabot.yml sadece güncelleme PR'larını açar)
 - [ ] Google Cloud Console'da OAuth Client ID (Web uygulaması) oluşturmak, yetkili kaynakları eklemek
 - [ ] Cloudflare API token'ı oluşturup repoya `CLOUDFLARE_API_TOKEN` secret'ı olarak eklemek (token Claude ile paylaşılmaz)
 
@@ -191,4 +194,4 @@ app/
 - Elle açık/koyu tema değiştirici istenir mi? (Şu an sistem ayarını izliyor.)
 - YouGlish için partner anahtarı / reklam ayarı gerekecek mi? (Şu an anahtarsız, `setAdsLocation` çağrılmıyor.)
 - R2 bucket adı ve Worker adı
-- Uygulamanın adı (şimdilik "Vocab Notebook")
+- Uygulamanın adı (repo `vocabook`, arayüzde şimdilik "Vocab Notebook" — birleştirilsin mi?)
