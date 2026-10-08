@@ -1,15 +1,21 @@
 import { AuthError, verifyGoogleIdToken, type KeyFetcher } from './google'
 import { MAX_BODY_BYTES, SchemaError, validateNotebook } from './schema'
+import { isSessionToken, issueSession, verifySession } from './session'
 
 // Sync API for the notebook.
 //   GET    /v1/notebook  → { etag, notebook }   (both null when nothing is stored yet)
 //   PUT    /v1/notebook  ← notebook JSON, with If-Match: <etag> or If-None-Match: *  → { etag }
 //   DELETE /v1/notebook  → removes the stored copy
-// Every request carries a Google ID token; the storage path comes only from its `sub`.
+//   POST   /v1/session   → { token, expires }: trades a Google ID token (or a session
+//                          that is still valid) for a fresh session token
+// Every request carries a Google ID token or a session token issued here; the storage
+// path comes only from the verified `sub`.
 
 export interface Env {
   BUCKET: R2Bucket
   GOOGLE_CLIENT_ID: string
+  /** Signs session tokens. A Worker secret; changing it signs everyone out. */
+  SESSION_SECRET: string
   /** Comma-separated list of origins allowed to call the API. */
   ALLOWED_ORIGINS: string
 }
@@ -21,7 +27,7 @@ function corsHeaders(origin: string | null, env: Env): Record<string, string> {
   if (!origin || !allowed.includes(origin)) return {}
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type, If-Match, If-None-Match',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
@@ -64,18 +70,26 @@ export async function handle(request: Request, env: Env, fetchKeys?: KeyFetcher)
   const { pathname } = new URL(request.url)
 
   if (request.method === 'OPTIONS') return new Response(null, { status: cors['Access-Control-Allow-Origin'] ? 204 : 403, headers: cors })
-  if (pathname !== '/v1/notebook') return json({ error: 'Not found' }, 404, cors)
+  if (pathname !== '/v1/notebook' && pathname !== '/v1/session') return json({ error: 'Not found' }, 404, cors)
 
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1]
   if (!token) return json({ error: 'Sign-in required' }, 401, cors)
 
   let sub: string
   try {
-    sub = (await verifyGoogleIdToken(token, env.GOOGLE_CLIENT_ID, { fetchKeys })).sub
+    sub = isSessionToken(token)
+      ? (await verifySession(token, env.SESSION_SECRET)).sub
+      : (await verifyGoogleIdToken(token, env.GOOGLE_CLIENT_ID, { fetchKeys })).sub
   } catch (err) {
     if (err instanceof AuthError) return json({ error: err.message }, 401, cors)
     throw err
   }
+
+  if (pathname === '/v1/session') {
+    if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405, cors)
+    return json(await issueSession(sub, env.SESSION_SECRET), 200, cors)
+  }
+
   const key = objectKey(sub)
 
   if (request.method === 'GET') {

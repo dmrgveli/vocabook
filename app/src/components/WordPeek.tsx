@@ -6,7 +6,7 @@ import { isFunctionWord, peek, type Peek } from '../api/datamuse'
 import { useAppState } from '../app/state'
 import { findByWord } from '../data/db'
 import type { Entry } from '../data/model'
-import { wordPath } from '../data/paths'
+import { lookPath, wordPath } from '../data/paths'
 import { KBadge, SpeakButton } from './ui'
 
 // A small card about any word you click in a definition or in the related words:
@@ -223,15 +223,26 @@ function PeekCard({ state }: { state: PeekState }) {
               In your notebook <ArrowRight size={14} />
             </button>
           ) : (
-            <button
-              className="btn small peek-add"
-              onClick={() => {
-                closePeek()
-                openQuickAdd({ word: p.word, frequency: p.frequency })
-              }}
-            >
-              <Plus size={14} /> Add to notebook
-            </button>
+            <>
+              <button
+                className="btn btn-quiet small"
+                onClick={() => {
+                  closePeek()
+                  navigate(lookPath(p.word))
+                }}
+              >
+                More <ArrowRight size={14} />
+              </button>
+              <button
+                className="btn small peek-add"
+                onClick={() => {
+                  closePeek()
+                  openQuickAdd({ word: p.word, frequency: p.frequency })
+                }}
+              >
+                <Plus size={14} /> Add to notebook
+              </button>
+            </>
           )}
         </div>
       )}

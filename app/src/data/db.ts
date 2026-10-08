@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import { now, normalizeWord, type Entry } from './model'
+import { now, normalizeWord, type Enrichment, type Entry } from './model'
 
 // Local-first: every write goes to IndexedDB first. Sync (stage 3) builds on top of this.
 
@@ -25,7 +25,8 @@ function db() {
 }
 
 /** 'local' = the user changed something; 'sync' = changes pulled from the cloud. */
-export type ChangeOrigin = 'local' | 'sync'
+/** local = the user's edit (synced), sync = pulled from the cloud, cache = dictionary data (never synced). */
+export type ChangeOrigin = 'local' | 'sync' | 'cache'
 type Listener = (origin: ChangeOrigin) => void
 const listeners = new Set<Listener>()
 
@@ -87,6 +88,17 @@ export async function updateEntry(id: string, change: (entry: Entry) => Entry): 
   await (await db()).put('entries', next)
   notify()
   return next
+}
+
+/**
+ * Stores dictionary data in an entry. It is a per-device cache, not an edit: updatedAt
+ * stays, so filling it in does not make the entry "newer" or trigger a sync.
+ */
+export async function cacheEnrichment(id: string, enrichment: Enrichment, frequency?: number): Promise<void> {
+  const entry = await getEntry(id)
+  if (!entry) return
+  await (await db()).put('entries', { ...entry, enrichment, frequency: entry.frequency ?? frequency })
+  notify('cache')
 }
 
 /** Soft delete: the record stays so sync can carry the deletion to other devices. */

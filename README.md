@@ -27,12 +27,13 @@ devices with a Google account.
 - **How common is it?** Every word shows the thousand its word family falls in (1K–25K) on Paul Nation's BNC/COCA lists.
 - **Used together with:** a compact map of the words that most often come right before and after it.
 - **Your own layer:** your translation, your own sentence, every encounter (source, sentence, date), notes, and a simple self-rating: *Seen it → Know it → Use it*.
+- **Look up any word** without adding it: from the sidebar, the notebook search or the phone's top bar, with the same definitions, word map and clips as a word page.
 - **Look-ups everywhere:** click any word in a definition for a small card with its level, pronunciation and meaning, and add it in one step.
 - **Notebook views:** search, filter by level, mastery or source, sort and group your words.
 - **Gentle reminders:** once you have 10 words, opening the app may suggest a few you haven't looked at in a while. Easy to dismiss or turn off.
 - **Profile:** streaks, a six-month activity map and achievements, all derived from your notebook.
 - **Sync:** sign in with Google to keep the notebook in sync. Local-first: everything is saved in your browser first.
-- Light and dark themes, desktop-first layout that also works on phones.
+- Light and dark themes, a choice of highlighter colour, desktop-first layout that also works on phones.
 
 ## How it is built
 
@@ -42,7 +43,7 @@ worker/   Cloudflare Worker (sync API)                   → Cloudflare, R2 stor
 ```
 
 - **App:** React 19, TypeScript, Vite, React Router (hash routes), IndexedDB via `idb`, Motion for animation, Lucide icons. Words are written to IndexedDB first; sync runs in the background.
-- **Sync:** the Worker verifies the Google ID token on every request (signature, audience, issuer, expiry), stores one JSON document per user in R2 under a path derived only from the token's subject, allows only the app's origin (CORS), caps bodies at 2 MB, validates their shape and uses ETag-conditional writes. Clients merge per entry, per encounter and per note.
+- **Sync:** the Worker verifies the Google ID token (signature, audience, issuer, expiry) and trades it for its own signed session token, so a reload does not need Google again; every request carries one of the two. It stores one JSON document per user in R2 under a path derived only from the token's subject, allows only the app's origin (CORS), caps bodies at 2 MB, validates their shape and uses ETag-conditional writes. Clients merge per entry, per encounter and per note.
 - **Dictionary data** is copied into each word when it is added, so the notebook keeps working if an API is down. It is a per-device cache and is not synced.
 
 ## Running it locally
@@ -81,6 +82,7 @@ that need them:
 | Google OAuth client ID (app) | GitHub → Settings → Secrets and variables → Actions → **Variables** → `GOOGLE_CLIENT_ID` | No, but kept out of the repo |
 | Sync API URL (app) | GitHub Actions variable `SYNC_URL` | No |
 | Google OAuth client ID (Worker) | `wrangler secret put GOOGLE_CLIENT_ID` | Stored as a Worker secret |
+| Session signing key (Worker) | `wrangler secret put SESSION_SECRET` (32+ random characters) | **Yes** |
 | Allowed origins (Worker) | `worker/wrangler.jsonc` → `ALLOWED_ORIGINS` | No |
 | Cloudflare account ID | GitHub Actions variable `CLOUDFLARE_ACCOUNT_ID` | No |
 | Cloudflare API token (for CI deploys) | GitHub Actions **secret** `CLOUDFLARE_API_TOKEN` | **Yes** |

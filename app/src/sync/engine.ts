@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { applySyncedEntries, listAllEntries, replaceAllEntries, subscribe } from '../data/db'
 import type { Entry } from '../data/model'
-import { getAuthState, getIdToken, subscribeAuth, syncConfigured } from './auth'
+import { getAuthState, getAuthToken, invalidateSession, subscribeAuth, SYNC_BASE, syncConfigured } from './auth'
 import { changedLocally, mergeNotebooks, stableStringify, wireNotebook, type SyncedNotebook } from './merge'
 
 // Background sync between IndexedDB and the Worker. The device stays the source of
@@ -9,7 +9,7 @@ import { changedLocally, mergeNotebooks, stableStringify, wireNotebook, type Syn
 // copy using a conditional write (ETag). A conflicting write from another device fails
 // with 412; we fetch again, merge again and retry.
 
-const SYNC_URL = `${(import.meta.env.VITE_SYNC_URL ?? '').replace(/\/$/, '')}/v1/notebook`
+const SYNC_URL = `${SYNC_BASE}/v1/notebook`
 const LAST_ACCOUNT_KEY = 'last-synced-account'
 const DEBOUNCE_MS = 2500
 const INTERVAL_MS = 5 * 60 * 1000
@@ -101,7 +101,7 @@ async function runSync(): Promise<void> {
   if (status.state === 'account-changed') return
 
   setStatus({ state: 'syncing', lastSynced })
-  const token = await getIdToken()
+  const token = await getAuthToken()
   if (!token) return setStatus({ state: 'off' })
   const sub = (getAuthState() as { user?: { sub: string } }).user?.sub
 
@@ -142,7 +142,10 @@ async function runSync(): Promise<void> {
       return setStatus({ state: 'synced', lastSynced })
     }
   } catch (err) {
-    if (err instanceof HttpError && err.status === 401) return setStatus({ state: 'off' })
+    if (err instanceof HttpError && err.status === 401) {
+      invalidateSession()
+      return setStatus({ state: 'off' })
+    }
     if (err instanceof HttpError && err.status === 413)
       return setStatus({ state: 'error', message: 'Your notebook is too large to sync.', lastSynced })
     if (!navigator.onLine || err instanceof TypeError || (err as Error).name === 'TimeoutError')
@@ -159,7 +162,7 @@ export async function resolveAccountChange(choice: 'merge' | 'replace') {
   const auth = getAuthState()
   if (auth.status !== 'signed-in') return
   if (choice === 'replace') {
-    const token = await getIdToken()
+    const token = await getAuthToken()
     if (!token) return
     const remote = await request<{ notebook: SyncedNotebook | null }>('GET', token)
     await replaceAllEntries(remote.notebook?.entries ?? ([] as Entry[]))
@@ -171,7 +174,7 @@ export async function resolveAccountChange(choice: 'merge' | 'replace') {
 
 /** Removes the cloud copy; this device keeps its words. */
 export async function deleteCloudCopy(): Promise<boolean> {
-  const token = await getIdToken()
+  const token = await getAuthToken()
   if (!token) return false
   await request('DELETE', token)
   setStatus({ state: 'off' })

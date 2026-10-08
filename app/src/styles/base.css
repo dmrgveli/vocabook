@@ -356,3 +356,22 @@ button.chip:hover {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* From good-css.com: balanced headings, no lone last words in paragraphs,
+   and digits that keep their width in counters and stats. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+.profile-stat-value,
+.streak-number,
+.filter-count,
+.result-count {
+  font-variant-numeric: tabular-nums;
+}

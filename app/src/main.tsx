@@ -11,6 +11,7 @@ import './styles/screens.css'
 import './styles/mobile.css'
 import { App } from './app/App'
 import { AppStateProvider } from './app/state'
+import { startBackfill } from './api/enrich'
 import { initAuth } from './sync/auth'
 import { startSync } from './sync/engine'
 import { initTheme } from './theme'
@@ -18,6 +19,7 @@ import { initTheme } from './theme'
 initTheme()
 startSync()
 void initAuth()
+startBackfill()
 
 // Hash router: GitHub Pages returns 404 for sub-paths.
 createRoot(document.getElementById('root')!).render(

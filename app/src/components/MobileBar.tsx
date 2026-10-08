@@ -1,4 +1,4 @@
-import { Menu, Plus, Settings, X } from 'lucide-react'
+import { Menu, Plus, Search, Settings, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppState } from '../app/state'
@@ -21,7 +21,7 @@ export function useIsMobile(): boolean {
 /** Top bar on small screens: menu (the sidebar as a drawer) and the app name. Hidden on desktop by CSS. */
 export function MobileBar({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => void }) {
   const auth = useAuth()
-  const { setProfileOpen } = useAppState()
+  const { setProfileOpen, setLookUpOpen } = useAppState()
   return (
     <header className="mobile-bar">
       <button className="icon-btn mobile-menu-btn" onClick={onMenu} aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} aria-controls="sidebar">
@@ -32,6 +32,9 @@ export function MobileBar({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () 
         Vocabook
       </Link>
       <span className="mobile-bar-end">
+        <button className="icon-btn mobile-menu-btn" onClick={() => setLookUpOpen(true)} aria-label="Look up a word">
+          <Search size={21} />
+        </button>
         {(auth.status === 'signed-in' || auth.status === 'expired') && (
           <button className="profile-chip" onClick={() => setProfileOpen(true)} aria-label="Open your profile">
             {auth.user.picture ? <img className="avatar" src={auth.user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar" />}

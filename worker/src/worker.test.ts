@@ -2,8 +2,10 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { verifyGoogleIdToken } from './google'
 import { handle, type Env } from './index'
 import { validateNotebook } from './schema'
+import { issueSession, verifySession } from './session'
 
 const CLIENT_ID = 'test-client.apps.googleusercontent.com'
+const SECRET = 'test-session-secret-0123456789abcdef'
 const ORIGIN = 'https://dmrgveli.github.io'
 
 let privateKey: CryptoKey
@@ -119,10 +121,13 @@ describe('sync API', () => {
   let bucket: ReturnType<typeof fakeBucket>
   let env: Env
 
-  const call = async (method: string, init: { token?: string; body?: unknown; headers?: Record<string, string> } = {}) => {
+  const call = async (
+    method: string,
+    init: { token?: string; body?: unknown; headers?: Record<string, string>; path?: string } = {},
+  ) => {
     const headers: Record<string, string> = { origin: ORIGIN, ...init.headers }
     if (init.token) headers.authorization = `Bearer ${init.token}`
-    const req = new Request('https://sync.example/v1/notebook', {
+    const req = new Request(`https://sync.example${init.path ?? '/v1/notebook'}`, {
       method,
       headers,
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
@@ -132,7 +137,7 @@ describe('sync API', () => {
 
   beforeAll(() => {
     bucket = fakeBucket()
-    env = { BUCKET: bucket as unknown as R2Bucket, GOOGLE_CLIENT_ID: CLIENT_ID, ALLOWED_ORIGINS: ORIGIN }
+    env = { BUCKET: bucket as unknown as R2Bucket, GOOGLE_CLIENT_ID: CLIENT_ID, SESSION_SECRET: SECRET, ALLOWED_ORIGINS: ORIGIN }
   })
 
   it('requires a valid token', async () => {
@@ -178,5 +183,36 @@ describe('sync API', () => {
     await call('DELETE', { token: other })
     expect(bucket.store.has('users/777/progress.json')).toBe(false)
     expect(bucket.store.has('users/1234567890/progress.json')).toBe(true)
+  })
+
+  it('trades a Google token for a session that works on its own and can be renewed', async () => {
+    expect((await call('POST', { path: '/v1/session' })).status).toBe(401)
+    const google = await sign(goodClaims({ sub: '555' }))
+    const res = await call('POST', { token: google, path: '/v1/session' })
+    const { token, expires } = (await res.json()) as { token: string; expires: number }
+    expect(token.startsWith('vs1.')).toBe(true)
+    expect(expires).toBeGreaterThan(now() + 50 * 86400)
+
+    await call('PUT', { token, body: notebook, headers: { 'if-none-match': '*' } })
+    expect(bucket.store.has('users/555/progress.json')).toBe(true)
+
+    const renewed = await call('POST', { token, path: '/v1/session' })
+    expect(renewed.status).toBe(200)
+    expect((await call('GET', { path: '/v1/session', token })).status).toBe(405)
+  })
+})
+
+describe('session tokens', () => {
+  it('reject tampering, other secrets and expiry', async () => {
+    const { token } = await issueSession('123', SECRET)
+    expect((await verifySession(token, SECRET)).sub).toBe('123')
+
+    const [, payload, sig] = token.split('.')
+    const forged = `vs1.${btoa(JSON.stringify({ sub: '999', iat: now(), exp: now() + 999 })).replace(/=+$/, '')}.${sig}`
+    await expect(verifySession(forged, SECRET)).rejects.toThrow('Bad session')
+    await expect(verifySession(token, 'another-secret-0123456789abcdefghij')).rejects.toThrow('Bad session')
+    await expect(verifySession(token, SECRET, now() + 61 * 86400)).rejects.toThrow('Session expired')
+    await expect(verifySession(`vs1.${payload}`, SECRET)).rejects.toThrow('Malformed')
+    await expect(issueSession('1', 'short')).rejects.toThrow('SESSION_SECRET')
   })
 })

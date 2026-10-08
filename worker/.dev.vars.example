@@ -1,3 +1,4 @@
 # Copy to .dev.vars for `npm run dev` (that file is git-ignored).
 ALLOWED_ORIGINS=http://localhost:5173
 GOOGLE_CLIENT_ID=
+SESSION_SECRET=local-development-secret-at-least-32-chars

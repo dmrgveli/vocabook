@@ -1,17 +1,33 @@
 import { useSyncExternalStore } from 'react'
 import { resolvedTheme } from '../theme'
 
-// Google sign-in with Google Identity Services. The ID token lives in memory only
-// (never in localStorage); a "was signed in" hint lets the next visit sign in again
-// silently through One Tap / FedCM auto-select.
+// Google sign-in with Google Identity Services, then a session from our Worker.
+//
+// Google's ID token lasts an hour and is kept in memory only. Right after sign-in the
+// Worker trades it for its own session token (60 days, renewed while the app is used),
+// which is kept in localStorage so a reload or a new visit stays signed in without
+// asking Google again. Silent re-sign-in through One Tap / FedCM was not reliable
+// enough for that: browsers rate-limit it and Safari and Firefox lack FedCM.
 
 export const GOOGLE_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
-export const syncConfigured = Boolean(GOOGLE_CLIENT_ID && import.meta.env.VITE_SYNC_URL)
+export const SYNC_BASE: string = (import.meta.env.VITE_SYNC_URL ?? '').replace(/\/$/, '')
+export const syncConfigured = Boolean(GOOGLE_CLIENT_ID && SYNC_BASE)
 
 const GIS_URL = 'https://accounts.google.com/gsi/client'
+/** Profile shown while signed out after an expired session ("sign in again"). */
 const HINT_KEY = 'signed-in-hint'
+const SESSION_KEY = 'sync-session'
 /** Refresh a little before Google's one-hour expiry. */
 const EXPIRY_MARGIN_MS = 5 * 60 * 1000
+/** Renew the session once less than this is left (sessions last 60 days). */
+const RENEW_BEFORE_MS = 45 * 24 * 60 * 60 * 1000
+
+interface Session {
+  token: string
+  /** ms since epoch */
+  expires: number
+  user: User
+}
 
 export interface User {
   sub: string
@@ -43,6 +59,7 @@ declare global {
 
 let state: AuthState = { status: syncConfigured ? 'signed-out' : 'unconfigured' }
 let token: { value: string; expires: number } | undefined
+let session: Session | undefined = readSession()
 const listeners = new Set<() => void>()
 let waiters: ((t: string | undefined) => void)[] = []
 
@@ -87,6 +104,54 @@ function writeHint(user: User | undefined) {
   }
 }
 
+function readSession(): Session | undefined {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY) ?? 'null') as Session | null
+    return s && typeof s.token === 'string' && s.expires > Date.now() && s.user?.sub ? s : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function saveSession(next: Session | undefined) {
+  session = next
+  try {
+    if (next) localStorage.setItem(SESSION_KEY, JSON.stringify(next))
+    else localStorage.removeItem(SESSION_KEY)
+  } catch {
+    // storage unavailable: the session lasts until the page closes
+  }
+}
+
+let exchanging: Promise<string | undefined> | undefined
+
+/** Trades a Google ID token, or a session that is still valid, for a fresh session. */
+function exchange(credential: string, user: User): Promise<string | undefined> {
+  exchanging ??= (async () => {
+    try {
+      const res = await fetch(`${SYNC_BASE}/v1/session`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${credential}` },
+        signal: AbortSignal.timeout(15_000),
+      })
+      if (res.status === 401 && credential === session?.token) {
+        // the Worker no longer accepts this session (e.g. its key was changed)
+        invalidateSession()
+        return undefined
+      }
+      if (!res.ok) return undefined
+      const body = (await res.json()) as { token: string; expires: number }
+      saveSession({ token: body.token, expires: body.expires * 1000, user })
+      return body.token
+    } catch {
+      return undefined // offline: try again on the next sync
+    } finally {
+      exchanging = undefined
+    }
+  })()
+  return exchanging
+}
+
 /** Reads the claims for display; the Worker is what actually verifies the token. */
 function decodeClaims(jwt: string): (User & { exp: number }) | undefined {
   try {
@@ -110,6 +175,7 @@ function onCredential(response: { credential?: string }) {
   setState({ status: 'signed-in', user })
   waiters.forEach((w) => w(token!.value))
   waiters = []
+  void exchange(response.credential, user)
 }
 
 let gisLoading: Promise<GoogleId> | undefined
@@ -142,9 +208,13 @@ function loadGis(): Promise<GoogleId> {
   return gisLoading
 }
 
-/** On start-up: if this device was signed in before, try to get a token silently. */
+/**
+ * On start-up: a stored session means signed in straight away. Devices signed in before
+ * sessions existed (only the hint is there) get one silent Google attempt.
+ */
 export async function initAuth() {
   if (!syncConfigured) return
+  if (session) return setState({ status: 'signed-in', user: session.user })
   const hint = readHint()
   if (!hint) return
   setState({ status: 'expired', user: hint })
@@ -154,6 +224,14 @@ export async function initAuth() {
   } catch {
     // offline or blocked: stays 'expired' until the user signs in again
   }
+}
+
+/** The Worker rejected our session: ask the user to sign in again. */
+export function invalidateSession() {
+  const user = session?.user ?? (state.status === 'signed-in' ? state.user : undefined)
+  saveSession(undefined)
+  token = undefined
+  if (user) setState({ status: 'expired', user })
 }
 
 /** Draws Google's own sign-in button into the element. */
@@ -174,10 +252,14 @@ export async function renderSignInButton(el: HTMLElement, width?: number) {
 }
 
 /**
- * A valid ID token, refreshing it through silent sign-in when it is about to expire.
- * Resolves to undefined when the user has to sign in again.
+ * A token for the sync API: the session (renewed when it gets old), else a fresh Google
+ * ID token, else one silent Google sign-in attempt. Undefined when the user has to sign in again.
  */
-export async function getIdToken(): Promise<string | undefined> {
+export async function getAuthToken(): Promise<string | undefined> {
+  if (session && session.expires - EXPIRY_MARGIN_MS > Date.now()) {
+    if (session.expires - RENEW_BEFORE_MS < Date.now()) void exchange(session.token, session.user)
+    return session.token
+  }
   if (token && token.expires - EXPIRY_MARGIN_MS > Date.now()) return token.value
   if (state.status === 'signed-in') setState({ status: 'expired', user: state.user })
   if (state.status !== 'expired') return undefined
@@ -203,6 +285,7 @@ export async function getIdToken(): Promise<string | undefined> {
 
 export function signOut() {
   token = undefined
+  saveSession(undefined)
   writeHint(undefined)
   window.google?.accounts.id.disableAutoSelect()
   setState({ status: 'signed-out' })

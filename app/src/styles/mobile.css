@@ -471,6 +471,16 @@
     flex-wrap: wrap;
   }
 
+  .swatches {
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .swatch {
+    width: 40px;
+    height: 40px;
+  }
+
   /* ---------- profile ---------- */
 
   .profile {

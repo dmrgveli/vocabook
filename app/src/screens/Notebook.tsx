@@ -1,13 +1,13 @@
 import { motion } from 'motion/react'
-import { ArrowUpDown, Plus, Rows3, Search, X } from 'lucide-react'
+import { ArrowRight, ArrowUpDown, BookOpenText, Plus, Rows3, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { MOD_KEY } from '../components/Sidebar'
 import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
 import { bandOfWord, K_BANDS, levelOf, MAX_LEVEL, useLevelsReady } from '../data/levels'
-import { alive, MASTERY_LABELS, type Entry, type Mastery } from '../data/model'
-import { wordPath } from '../data/paths'
+import { alive, MASTERY_LABELS, normalizeWord, type Entry, type Mastery } from '../data/model'
+import { lookPath, wordPath } from '../data/paths'
 import {
   EMPTY_FILTERS,
   entrySource,
@@ -86,7 +86,7 @@ function useNotebookView(): [NotebookView, (v: NotebookView) => void] {
 }
 
 export function Notebook({ entries }: { entries: Entry[] }) {
-  const { filters, setFilters, openQuickAdd } = useAppState()
+  const { filters, setFilters, openQuickAdd, setLookUpOpen } = useAppState()
   const searchRef = useRef<HTMLInputElement>(null)
   // Card colours and the "how common" filter come from the BNC/COCA table, which loads in the background.
   const levelsReady = useLevelsReady()
@@ -110,7 +110,7 @@ export function Notebook({ entries }: { entries: Entry[] }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  if (entries.length === 0) return <EmptyNotebook onAdd={() => openQuickAdd()} />
+  if (entries.length === 0) return <EmptyNotebook onAdd={() => openQuickAdd()} onLookUp={() => setLookUpOpen(true)} />
 
   const activeChips = [
     filters.band && { key: 'band', label: K_BANDS.find((b) => b.id === filters.band)!.label },
@@ -136,7 +136,7 @@ export function Notebook({ entries }: { entries: Entry[] }) {
           <input
             ref={searchRef}
             type="search"
-            placeholder="Search words, translations, notes…"
+            placeholder="Search your notebook or look up a word…"
             value={filters.query}
             onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
             aria-label="Search the notebook"
@@ -187,8 +187,10 @@ export function Notebook({ entries }: { entries: Entry[] }) {
         )}
       </div>
 
+      <LookUpHint query={filters.query} entries={entries} />
+
       {pages.length === 0 ? (
-        <p className="muted no-results">No words match these filters.</p>
+        <p className="muted no-results">No words in your notebook match.</p>
       ) : (
         pages.map(({ key, entries }, pageIndex) => (
           <section key={`${view.group}:${key}`} className="day">
@@ -213,6 +215,24 @@ export function Notebook({ entries }: { entries: Entry[] }) {
         ))
       )}
     </div>
+  )
+}
+
+/** Searching for a word you don't have yet: offer to look it up in the dictionary. */
+function LookUpHint({ query, entries }: { query: string; entries: Entry[] }) {
+  const word = normalizeWord(query)
+  // single words or short phrases only, and not one already in the notebook
+  if (!word || word.length > 40 || !/^[a-z][a-z' -]*$/i.test(word) || entries.some((e) => e.word === word)) return null
+  return (
+    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+      <Link to={lookPath(word)} className="lookup-hint">
+        <BookOpenText size={17} />
+        <span>
+          Look up <strong className="word-font">{word}</strong> in the dictionary
+        </span>
+        <ArrowRight size={16} className="lookup-hint-arrow" />
+      </Link>
+    </motion.div>
   )
 }
 
@@ -249,7 +269,7 @@ function WordCard({ entry }: { entry: Entry }) {
   )
 }
 
-function EmptyNotebook({ onAdd }: { onAdd: () => void }) {
+function EmptyNotebook({ onAdd, onLookUp }: { onAdd: () => void; onLookUp: () => void }) {
   return (
     <div className="page empty-state">
       <motion.div
@@ -267,6 +287,9 @@ function EmptyNotebook({ onAdd }: { onAdd: () => void }) {
         </p>
         <button className="btn btn-marker" onClick={onAdd}>
           <Plus size={16} strokeWidth={2.5} /> Add your first word <kbd>{MOD_KEY} K</kbd>
+        </button>
+        <button className="btn btn-quiet" onClick={onLookUp}>
+          <Search size={16} /> Or just look up a word
         </button>
       </motion.div>
     </div>

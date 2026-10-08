@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { BookOpen, Plus } from 'lucide-react'
+import { BookOpen, Plus, Search } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
@@ -17,7 +17,7 @@ export const MOD_KEY = isMac ? '⌘' : 'Ctrl'
  * (styles/mobile.css); `open` and `onNavigate` only matter there.
  */
 export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[]; open?: boolean; onNavigate?: () => void }) {
-  const { filters, setFilters, openQuickAdd } = useAppState()
+  const { filters, setFilters, openQuickAdd, setLookUpOpen } = useAppState()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const mobile = useIsMobile()
@@ -62,6 +62,18 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
 
       <nav className="nav">
         <NavItem to="/" icon={<BookOpen size={17} />} label="Notebook" count={entries.length} onClick={onNavigate} />
+        <button
+          className="nav-item nav-btn"
+          onClick={() => {
+            onNavigate?.()
+            setLookUpOpen(true)
+          }}
+        >
+          <span className="row">
+            <Search size={17} />
+          </span>
+          <span>Look up a word</span>
+        </button>
       </nav>
 
       {entries.length > 0 && (

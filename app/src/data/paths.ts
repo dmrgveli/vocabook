@@ -7,8 +7,15 @@ import { normalizeWord } from './model'
 
 const ENTRY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+const encodeWord = (word: string) => encodeURIComponent(word).replace(/%20/g, '+')
+
 export function wordPath(word: string): string {
-  return `/word/${encodeURIComponent(word).replace(/%20/g, '+')}`
+  return `/word/${encodeWord(word)}`
+}
+
+/** A word looked up without adding it: #/look/thrive. Same encoding as word pages. */
+export function lookPath(word: string): string {
+  return `/look/${encodeWord(word)}`
 }
 
 /** What a /word/:param URL points to. React Router has already percent-decoded the param. */

@@ -730,3 +730,19 @@
   padding-top: 10px;
   border-top: 1.5px solid var(--line-soft);
 }
+
+.nav-btn {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.palette-hint {
+  margin: 0;
+  padding: 12px 18px 14px;
+  border-top: 1.5px solid var(--line-soft);
+}

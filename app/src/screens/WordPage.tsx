@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft, ChevronUp, CloudOff, Play, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { enrichEntry, isEnriching } from '../api/enrich'
+import { enrichEntry, isEnriching, lookUp } from '../api/enrich'
 import { useAppState } from '../app/state'
 import { EditableText } from '../components/EditableText'
 import { ErrorBoundary } from '../components/ErrorBoundary'
@@ -79,40 +79,7 @@ function WordPageContent({ entry }: { entry: Entry }) {
 
       <header className="word-hero">
         <div className="word-hero-main">
-          <motion.div
-            className="word-title-row"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 26 }}
-          >
-            <h1 className="word-font word-title" lang="en">
-              {entry.word}
-            </h1>
-            <motion.span
-              className="title-badges"
-              initial={{ scale: 0.4, rotate: -20, opacity: 0 }}
-              animate={{ scale: 1, rotate: 0, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 14, delay: 0.15 }}
-            >
-              <KBadge word={entry.word} large />
-              <button
-                type="button"
-                className="video-badge"
-                aria-expanded={videosOpen}
-                aria-controls="word-videos"
-                onClick={() => setVideosOpen((o) => !o)}
-              >
-                {videosOpen ? <ChevronUp size={15} strokeWidth={2.5} /> : <Play size={14} strokeWidth={2.5} fill="currentColor" />}
-                {videosOpen ? 'Hide videos' : 'Hear it used'}
-              </button>
-            </motion.span>
-          </motion.div>
-          <div className="row word-meta">
-            <SpeakButton text={entry.word} size="lg" />
-            <SpeakButton text={entry.word} size="lg" slow />
-            {e?.audioUrl && <RecordingButton url={e.audioUrl} word={entry.word} />}
-            {e?.phonetic && <span className="phonetic-lg">{e.phonetic}</span>}
-          </div>
+          <WordHeading word={entry.word} enrichment={e} videosOpen={videosOpen} onToggleVideos={() => setVideosOpen((o) => !o)} />
         </div>
         <div className="word-hero-side">
           <span className="label-sm">How well do you know it?</span>
@@ -121,25 +88,7 @@ function WordPageContent({ entry }: { entry: Entry }) {
         </div>
       </header>
 
-      <AnimatePresence initial={false}>
-        {videosOpen && (
-          <motion.section
-            id="word-videos"
-            className="videos-drawer"
-            aria-label={`“${entry.word}” in real videos`}
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <div className="videos-inner box">
-              <ErrorBoundary fallback={<p className="faint">The videos stopped working. Close and open them again.</p>}>
-                <YouGlishPanel word={entry.word} />
-              </ErrorBoundary>
-            </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
+      <VideosDrawer word={entry.word} open={videosOpen} />
 
       <div className="word-columns">
         <div className="word-col">
@@ -175,6 +124,189 @@ function WordPageContent({ entry }: { entry: Entry }) {
           <button className="btn btn-quiet btn-danger remove-btn" onClick={remove}>
             <Trash2 size={15} /> Remove from notebook
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** The big word, its stickers and the pronunciation buttons. */
+function WordHeading({
+  word,
+  enrichment: e,
+  videosOpen,
+  onToggleVideos,
+}: {
+  word: string
+  enrichment?: Enrichment
+  videosOpen: boolean
+  onToggleVideos: () => void
+}) {
+  return (
+    <>
+      <motion.div
+        className="word-title-row"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+      >
+        <h1 className="word-font word-title" lang="en">
+          {word}
+        </h1>
+        <motion.span
+          className="title-badges"
+          initial={{ scale: 0.4, rotate: -20, opacity: 0 }}
+          animate={{ scale: 1, rotate: 0, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 14, delay: 0.15 }}
+        >
+          <KBadge word={word} large />
+          <button type="button" className="video-badge" aria-expanded={videosOpen} aria-controls="word-videos" onClick={onToggleVideos}>
+            {videosOpen ? <ChevronUp size={15} strokeWidth={2.5} /> : <Play size={14} strokeWidth={2.5} fill="currentColor" />}
+            {videosOpen ? 'Hide videos' : 'Hear it used'}
+          </button>
+        </motion.span>
+      </motion.div>
+      <div className="row word-meta">
+        <SpeakButton text={word} size="lg" />
+        <SpeakButton text={word} size="lg" slow />
+        {e?.audioUrl && <RecordingButton url={e.audioUrl} word={word} />}
+        {e?.phonetic && <span className="phonetic-lg">{e.phonetic}</span>}
+      </div>
+    </>
+  )
+}
+
+function VideosDrawer({ word, open }: { word: string; open: boolean }) {
+  return (
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.section
+          id="word-videos"
+          className="videos-drawer"
+          aria-label={`“${word}” in real videos`}
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="videos-inner box">
+            <ErrorBoundary fallback={<p className="faint">The videos stopped working. Close and open them again.</p>}>
+              <YouGlishPanel word={word} />
+            </ErrorBoundary>
+          </div>
+        </motion.section>
+      )}
+    </AnimatePresence>
+  )
+}
+
+/* ---------- look-up: a word that is not in the notebook ---------- */
+
+type LookUpState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; enrichment: Enrichment; frequency?: number }
+
+/**
+ * #/look/<word>: the dictionary side of a word page, for a word you have not added.
+ * If the word is (or becomes) part of the notebook, this turns into its word page.
+ */
+export function LookUpPage() {
+  const { param } = useParams()
+  const target = param ? parseWordParam(param) : undefined
+  const word = target && 'word' in target ? target.word : ''
+  const entry = useEntryAt(param)
+  const navigate = useNavigate()
+  const { openQuickAdd } = useAppState()
+  const [videosOpen, setVideosOpen] = useState(false)
+  const [state, setState] = useState<LookUpState>({ status: 'loading' })
+  const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
+    if (entry) navigate(wordPath(entry.word), { replace: true })
+  }, [entry])
+
+  useEffect(() => {
+    document.querySelector('.main')?.scrollTo(0, 0)
+    window.scrollTo(0, 0)
+    setVideosOpen(false)
+  }, [word])
+
+  useEffect(() => {
+    if (!word) return
+    let active = true
+    setState({ status: 'loading' })
+    lookUp(word).then(
+      (r) => active && setState({ status: 'ready', ...r }),
+      () => active && setState({ status: 'error' }),
+    )
+    return () => {
+      active = false
+    }
+  }, [word, attempt])
+
+  if (!word || entry === undefined || entry) return <div className="page" />
+  const e = state.status === 'ready' ? state.enrichment : undefined
+  const add = () => openQuickAdd({ word, frequency: state.status === 'ready' ? state.frequency : undefined })
+
+  return (
+    <div className="page word-page">
+      <BackLink />
+
+      <header className="word-hero">
+        <div className="word-hero-main">
+          <WordHeading word={word} enrichment={e} videosOpen={videosOpen} onToggleVideos={() => setVideosOpen((o) => !o)} />
+        </div>
+        <div className="word-hero-side">
+          <span className="label-sm">Not in your notebook</span>
+          <button className="btn btn-marker" onClick={add}>
+            <Plus size={16} strokeWidth={2.5} /> Add to notebook
+          </button>
+        </div>
+      </header>
+
+      <VideosDrawer word={word} open={videosOpen} />
+
+      <div className="word-columns lookup-columns">
+        <div className="word-col">
+          {state.status === 'ready' ? (
+            state.enrichment.definitionsFrom === 'none' && !hasCollocations(state.enrichment.collocations) ? (
+              <Panel title="Definitions">
+                <p className="muted">
+                  Nothing found for “{word}”. Check the spelling, or{' '}
+                  <button className="link-btn" onClick={() => navigate(-1)}>
+                    go back
+                  </button>
+                  .
+                </p>
+              </Panel>
+            ) : (
+              <DictionaryPanels enrichment={state.enrichment} word={word} />
+            )
+          ) : (
+            <Panel title="Definitions">
+              {state.status === 'error' ? (
+                <div className="offline">
+                  <CloudOff size={18} />
+                  <div>
+                    <p>The dictionary services can't be reached right now.</p>
+                    <button className="btn" onClick={() => setAttempt((n) => n + 1)}>
+                      <RefreshCw size={14} /> Try again
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <DefinitionSkeleton />
+              )}
+            </Panel>
+          )}
+        </div>
+        <div className="word-col">
+          <Panel title="Your notebook" delay={0.05}>
+            <p className="muted">
+              Met this word somewhere? Add it with where you saw it, and your translation, your sentence and notes will live here.
+            </p>
+            <button className="btn btn-marker" onClick={add}>
+              <Plus size={16} strokeWidth={2.5} /> Add “{word}”
+            </button>
+          </Panel>
         </div>
       </div>
     </div>
@@ -244,15 +376,20 @@ function Dictionary({ entry }: { entry: Entry }) {
     )
   }
 
+  return <DictionaryPanels enrichment={e} word={entry.word} aside={refresh} />
+}
+
+/** Definitions, the word map, related words and origin: shared by word pages and look-ups. */
+function DictionaryPanels({ enrichment: e, word, aside }: { enrichment: Enrichment; word: string; aside?: React.ReactNode }) {
   return (
     <>
-      <Panel title="Definitions" aside={refresh}>
-        <Definitions enrichment={e} word={entry.word} />
+      <Panel title="Definitions" aside={aside}>
+        <Definitions enrichment={e} word={word} />
       </Panel>
 
       {hasCollocations(e.collocations) && (
         <Panel title="Used together with" delay={0.05}>
-          <Collocations word={entry.word} collocations={e.collocations} />
+          <Collocations word={word} collocations={e.collocations} />
         </Panel>
       )}
 

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { BellRing, Clapperboard, Cloud, Database, ExternalLink, Info, Monitor, Moon, Palette, RefreshCw, Sun, Volume2 } from 'lucide-react'
+import { BellRing, Check, Clapperboard, Cloud, Database, ExternalLink, Info, Monitor, Moon, Palette, RefreshCw, Sun, Volume2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
 import { enrichEntry } from '../api/enrich'
@@ -8,7 +8,7 @@ import { AccountCard } from '../components/AccountCard'
 import { isEnrichmentCurrent, type Entry } from '../data/model'
 import { REMINDER_MIN_WORDS, setRemindersEnabled, useRemindersEnabled } from '../data/reminders'
 import { canSpeak, setSpeechPrefs, speak, useEnglishVoices, useSpeechPrefs } from '../speech'
-import { setThemePref, useThemePref, type ThemePref } from '../theme'
+import { ACCENT_PRESETS, DEFAULT_ACCENT, inkOn, setAccent, setThemePref, useAccent, useThemePref, type ThemePref } from '../theme'
 import { GOOGLE_PRIVACY_URL, setYouGlishConsent, useYouGlishConsent, YOUTUBE_TERMS_URL } from '../youglish'
 
 const CREATOR_INSTAGRAM = 'https://instagram.com/dmrgveli'
@@ -121,18 +121,71 @@ const THEMES: { id: ThemePref; label: string; icon: ReactNode }[] = [
 function AppearanceSettings() {
   const pref = useThemePref()
   return (
-    <Field title="Theme" hint="System follows your device's light or dark setting.">
-      <div className="choice" role="radiogroup" aria-label="Theme">
-        {THEMES.map((t) => (
-          <button key={t.id} role="radio" aria-checked={pref === t.id} className="choice-btn" onClick={() => setThemePref(t.id)}>
-            {pref === t.id && (
-              <motion.span layoutId="theme-thumb" className="choice-thumb" transition={{ type: 'spring', stiffness: 500, damping: 36 }} />
-            )}
-            <span className="choice-label">
-              {t.icon} {t.label}
-            </span>
+    <>
+      <Field title="Theme" hint="System follows your device's light or dark setting.">
+        <div className="choice" role="radiogroup" aria-label="Theme">
+          {THEMES.map((t) => (
+            <button key={t.id} role="radio" aria-checked={pref === t.id} className="choice-btn" onClick={() => setThemePref(t.id)}>
+              {pref === t.id && (
+                <motion.span layoutId="theme-thumb" className="choice-thumb" transition={{ type: 'spring', stiffness: 500, damping: 36 }} />
+              )}
+              <span className="choice-label">
+                {t.icon} {t.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </Field>
+      <AccentField />
+    </>
+  )
+}
+
+/** The highlighter colour: a few presets that work on paper in light and dark, or any colour. */
+function AccentField() {
+  const accent = useAccent()
+  const custom = !ACCENT_PRESETS.some((p) => p.color === accent)
+  return (
+    <Field
+      title="Accent colour"
+      hint={
+        <>
+          The highlighter: main buttons, highlights and stickers. Word-level colours stay as they are.
+          {accent !== DEFAULT_ACCENT && (
+            <>
+              {' '}
+              <button className="link-btn" onClick={() => setAccent(DEFAULT_ACCENT)}>
+                Back to yellow
+              </button>
+            </>
+          )}
+        </>
+      }
+    >
+      <div className="swatches" role="radiogroup" aria-label="Accent colour">
+        {ACCENT_PRESETS.map((p) => (
+          <button
+            key={p.color}
+            role="radio"
+            aria-checked={accent === p.color}
+            aria-label={p.name}
+            title={p.name}
+            className="swatch"
+            style={{ '--swatch': p.color, color: inkOn(p.color) } as React.CSSProperties}
+            onClick={() => setAccent(p.color)}
+          >
+            {accent === p.color && <Check size={15} strokeWidth={3} />}
           </button>
         ))}
+        <label
+          className="swatch swatch-custom"
+          data-checked={custom}
+          title="Pick any colour"
+          style={(custom ? { '--swatch': accent, color: inkOn(accent) } : {}) as React.CSSProperties}
+        >
+          {custom ? <Check size={15} strokeWidth={3} /> : <Palette size={15} />}
+          <input type="color" aria-label="Pick any colour" value={accent} onChange={(e) => setAccent(e.target.value)} />
+        </label>
       </div>
     </Field>
   )
