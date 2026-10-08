@@ -10,6 +10,7 @@ export interface SpeechPrefs {
 
 const KEY = 'speech-prefs'
 const DEFAULT_PREFS: SpeechPrefs = { rate: 0.9 }
+export const SLOW_RATE = 0.8
 
 const supported = typeof window !== 'undefined' && 'speechSynthesis' in window
 
@@ -109,7 +110,8 @@ export function speak(text: string, { slow = false, voiceURI }: { slow?: boolean
   const voice = voiceURI ? englishVoices().find((v) => v.voiceURI === voiceURI) : pickVoice()
   if (voice) u.voice = voice
   u.lang = voice?.lang ?? 'en-US'
-  u.rate = slow ? Math.max(0.4, prefs.rate * 0.6) : prefs.rate
+  // Slow is rate 0.8 (the user's choice, 8 Oct 2026); never faster than the normal speed.
+  u.rate = slow ? Math.min(SLOW_RATE, prefs.rate * 0.9) : prefs.rate
   const key = slow ? `${text}#slow` : text
   u.onstart = () => setSpeaking(key)
   u.onend = u.onerror = () => speaking === key && setSpeaking(null)

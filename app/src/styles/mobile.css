@@ -124,19 +124,23 @@
     overflow: hidden;
   }
 
-  /* ---------- bottom navigation ---------- */
+  /* ---------- bottom navigation: a floating pill, off the screen's edge ---------- */
 
   .tab-bar {
     position: fixed;
-    inset: auto 0 0;
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
     z-index: 35;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    align-items: end;
-    height: calc(64px + env(safe-area-inset-bottom));
-    padding: 0 6px env(safe-area-inset-bottom);
-    background: var(--paper);
-    border-top: 1.5px solid var(--line);
+    align-items: center;
+    height: 64px;
+    padding: 0 6px;
+    border: 1.5px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    box-shadow: var(--pop);
   }
 
   .tab {
@@ -144,47 +148,32 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    height: 64px;
+    gap: 2px;
+    height: 54px;
     padding: 0;
     border: 0;
+    border-radius: 999px;
     background: none;
     color: var(--ink-3);
     font: inherit;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
     text-decoration: none;
     cursor: pointer;
-  }
-
-  /* the icon sits on a highlighter pill when its tab is the current one */
-  .tab > svg,
-  .tab-avatar {
-    box-sizing: content-box;
-    padding: 4px 14px;
-    border-radius: 999px;
     transition: background 0.2s var(--ease), color 0.2s;
   }
 
+  /* the current tab: a highlighter pill behind icon and label */
   .tab[data-active='true'] {
-    color: var(--ink);
-  }
-
-  .tab[data-active='true'] > svg {
-    background: var(--marker);
     color: var(--marker-ink);
+    background: var(--marker);
   }
 
   .tab-avatar {
     width: 24px;
     height: 24px;
-    padding: 0;
-    border: 1.5px solid transparent;
-  }
-
-  .tab[data-active='true'] .tab-avatar {
-    border-color: var(--line);
-    box-shadow: 0 0 0 3px var(--marker);
+    font-size: 12px;
+    border: 1.5px solid var(--line);
   }
 
   .tab:active > svg,
@@ -192,31 +181,41 @@
     scale: 0.92;
   }
 
-  /* Add: larger, raised above the bar */
-  .tab-add {
-    justify-content: flex-end;
-    padding-bottom: 7px;
+  /* Add: a larger circle with its own shadow, standing out of the pill */
+  .tab-add,
+  .tab-add[data-active] {
+    background: none;
     color: var(--ink);
+  }
+
+  .tab-add > span:last-child {
+    display: none;
   }
 
   .tab-add-circle {
     display: grid;
     place-items: center;
-    width: 58px;
-    height: 58px;
-    margin-top: -26px;
+    width: 56px;
+    height: 56px;
     border: 1.5px solid var(--line);
     border-radius: 50%;
     background: var(--marker);
     color: var(--marker-ink);
-    box-shadow: var(--pop);
+    box-shadow:
+      3px 3px 0 var(--line),
+      0 8px 18px -4px color-mix(in oklch, var(--marker) 70%, transparent);
     transition: scale 0.15s var(--ease);
+  }
+
+  /* the notebook header's Flashback button: the bar has one already */
+  .flashback-cta {
+    display: none;
   }
 
   .toaster {
     left: 12px;
     right: 12px;
-    bottom: calc(78px + env(safe-area-inset-bottom));
+    bottom: calc(86px + env(safe-area-inset-bottom));
     align-items: stretch;
   }
 
@@ -469,6 +468,24 @@
     font-size: 16px;
   }
 
+  /* phones: the toggle sits next to the search box, the sort and group pickers get the row below */
+  .layout-toggle {
+    order: 0;
+    flex: none;
+    height: 42px;
+  }
+
+  .toolbar .search,
+  .toolbar .search:focus-within {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .word-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   /* ---------- word map ---------- */
 
   .kwic-map {
@@ -558,11 +575,6 @@
 
   .page-header:has(.flashback-cta) > p {
     margin-left: 0;
-  }
-
-  .flashback-cta {
-    align-self: flex-start;
-    margin-top: 10px;
   }
 
   .flashback-head {

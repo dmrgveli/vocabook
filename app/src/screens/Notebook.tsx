@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { ArrowRight, ArrowUpDown, BookOpenText, History, Plus, Rows3, Search, X } from 'lucide-react'
+import { ArrowRight, ArrowUpDown, BookOpenText, History, LayoutGrid, List, Plus, Rows3, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppState } from '../app/state'
@@ -59,10 +59,12 @@ const numericLevel = (word: string) => {
 interface NotebookView {
   sort: SortKey
   group: GroupKey
+  /** cards: the colourful cards; compact: one slim line per word, for long notebooks */
+  layout: 'cards' | 'compact'
 }
 
 const VIEW_KEY = 'notebook-view'
-const DEFAULT_VIEW: NotebookView = { sort: 'newest', group: 'day' }
+const DEFAULT_VIEW: NotebookView = { sort: 'newest', group: 'day', layout: 'cards' }
 
 /** Sort and grouping, remembered on this device. */
 function useNotebookView(): [NotebookView, (v: NotebookView) => void] {
@@ -70,7 +72,7 @@ function useNotebookView(): [NotebookView, (v: NotebookView) => void] {
     try {
       const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null')
       const valid = saved && SORTS.some((s) => s.id === saved.sort) && GROUPS.some((g) => g.id === saved.group)
-      return valid ? saved : DEFAULT_VIEW
+      return valid ? { ...saved, layout: saved.layout === 'compact' ? 'compact' : 'cards' } : DEFAULT_VIEW
     } catch {
       return DEFAULT_VIEW
     }
@@ -149,6 +151,15 @@ export function Notebook({ entries }: { entries: Entry[] }) {
           />
           <kbd>/</kbd>
         </label>
+        <span className="layout-toggle" role="group" aria-label="Layout">
+          <button aria-pressed={view.layout === 'cards'} onClick={() => setView({ ...view, layout: 'cards' })} title="Cards">
+            <LayoutGrid size={16} />
+          </button>
+          <button aria-pressed={view.layout === 'compact'} onClick={() => setView({ ...view, layout: 'compact' })} title="Compact list">
+            <List size={16} />
+          </button>
+        </span>
+
         {activeChips.map((c) => (
           <motion.button
             key={c.key}
@@ -205,18 +216,28 @@ export function Notebook({ entries }: { entries: Entry[] }) {
                 {groupTitle(view.group, key)} <span className="faint">{entries.length}</span>
               </h2>
             )}
-            <div className="card-grid">
-              {entries.map((e, i) => (
-                <motion.div
-                  key={e.id}
-                  initial={{ opacity: 0, y: 10, rotate: i % 2 ? 1.2 : -1.2 }}
-                  animate={{ opacity: 1, y: 0, rotate: 0 }}
-                  transition={{ type: 'spring', stiffness: 380, damping: 26, delay: Math.min(pageIndex * 0.04 + i * 0.03, 0.35) }}
-                >
-                  <WordCard entry={e} />
-                </motion.div>
-              ))}
-            </div>
+            {view.layout === 'compact' ? (
+              <ul className="word-list">
+                {entries.map((e) => (
+                  <li key={e.id}>
+                    <CompactWord entry={e} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="card-grid">
+                {entries.map((e, i) => (
+                  <motion.div
+                    key={e.id}
+                    initial={{ opacity: 0, y: 10, rotate: i % 2 ? 1.2 : -1.2 }}
+                    animate={{ opacity: 1, y: 0, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 26, delay: Math.min(pageIndex * 0.04 + i * 0.03, 0.35) }}
+                  >
+                    <WordCard entry={e} />
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </section>
         ))
       )}
@@ -239,6 +260,21 @@ function LookUpHint({ query, entries }: { query: string; entries: Entry[] }) {
         <ArrowRight size={16} className="lookup-hint-arrow" />
       </Link>
     </motion.div>
+  )
+}
+
+/** One slim line per word: the K-band colour as a stripe, the word, its meaning, the level. */
+function CompactWord({ entry }: { entry: Entry }) {
+  const meaning = entry.translation ?? entry.enrichment?.meanings[0]?.definitions[0]?.definition
+  return (
+    <article className={`word-row ${toneClass(entry.word)}`}>
+      <Link to={wordPath(entry.word)} className="word-font word-row-word card-link" lang="en">
+        {entry.word}
+      </Link>
+      {meaning && <span className="word-row-meaning truncate">{meaning}</span>}
+      <MasteryMeter level={entry.mastery} />
+      <KBadge word={entry.word} plain />
+    </article>
   )
 }
 

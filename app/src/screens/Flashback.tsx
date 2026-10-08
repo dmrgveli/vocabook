@@ -19,6 +19,7 @@ import {
   type FlashCard,
   type RoundResult,
 } from '../data/flashback'
+import { FlashbackHistoryButton } from '../components/FlashbackHistory'
 import { MASTERY_LABELS, metEncounters, type Entry } from '../data/model'
 import { wordPath } from '../data/paths'
 import { speak } from '../speech'
@@ -44,7 +45,7 @@ export function Flashback({ entries }: { entries: Entry[] }) {
   return (
     <div className="page flashback">
       {size === undefined ? (
-        <FlashbackHeader />
+        <FlashbackHeader entries={entries} />
       ) : (
         <Round
           key={roundId}
@@ -68,13 +69,14 @@ export function Flashback({ entries }: { entries: Entry[] }) {
   )
 }
 
-function FlashbackHeader({ children }: { children?: React.ReactNode }) {
+function FlashbackHeader({ entries, children }: { entries?: Entry[]; children?: React.ReactNode }) {
   return (
     <header className="page-header flashback-head">
       <h1 className="page-title">
         <span className="marked">Flashback</span>
       </h1>
       {children}
+      {entries && <FlashbackHistoryButton entries={entries} />}
     </header>
   )
 }
@@ -228,7 +230,7 @@ function Round({ entries, size, onAgain }: { entries: Entry[]; size: number; onA
 
   return (
     <>
-      <FlashbackHeader>
+      <FlashbackHeader entries={entries}>
         {!done && (
           <div className="row flash-status">
             <AnimatePresence>

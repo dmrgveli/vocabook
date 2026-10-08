@@ -55,9 +55,28 @@ describe('achievements', () => {
     const words = Array.from({ length: 12 }, (_, i) => ({ ...createEntry({ word: `w${i}` }), mastery: i < 2 ? ('use' as const) : ('recognize' as const) }))
     const list = achievements(stats(words, (w) => w === 'w0'))
     const byId = Object.fromEntries(list.map((a) => [a.id, a]))
-    expect(byId['words-10']).toMatchObject({ value: 10, goal: 10 })
-    expect(byId['words-50']).toMatchObject({ value: 12, goal: 50 })
+    expect(byId['first-word']).toMatchObject({ value: 1, goal: 1 })
     expect(byId['use-1']).toMatchObject({ value: 1, goal: 1 })
     expect(byId['rare-5']).toMatchObject({ value: 1, goal: 5 })
+    expect(byId['flashback-10']).toMatchObject({ value: 0, goal: 10 })
+    expect(list.some((a) => a.id.startsWith('words-'))).toBe(false)
+  })
+
+  it('counts the creative ones', () => {
+    const met = (word: string, places: string[], over: Partial<Entry> = {}): Entry => {
+      const e = createEntry({ word, encounter: createEncounter({ source: places[0] }) })
+      return { ...e, encounters: [...e.encounters, ...places.slice(1).map((source) => createEncounter({ source }))], ...over }
+    }
+    const lateNight = new Date()
+    lateNight.setHours(2, 30, 0, 0)
+    const s = stats(
+      [
+        met('linger', ['A show', 'a show ', 'Work', 'A book']),
+        met('look forward to', ['A podcast']),
+        met('serendipitous', ['A book'], { createdAt: lateNight.toISOString() }),
+      ],
+      () => false,
+    )
+    expect(s).toMatchObject({ mostPlacesForOneWord: 3, phrases: 1, longWords: 1, lateNightWords: 1 })
   })
 })

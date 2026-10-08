@@ -762,3 +762,19 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* no photo (or it failed to load): the first letter on the accent colour */
+.avatar-initial {
+  display: inline-grid;
+  place-items: center;
+  background: var(--marker);
+  color: var(--marker-ink);
+  font-weight: 800;
+  font-size: 0.95em;
+  line-height: 1;
+  user-select: none;
+}
+
+.avatar-lg.avatar-initial {
+  font-size: 24px;
+}

@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { Mic, Snail, Volume2 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { bandOf, bandOfWord, describeLevel, formatLevel, levelOf, useLevelsReady } from '../data/levels'
 import { MASTERY_HINTS, MASTERY_LABELS, MASTERY_LEVELS, type Mastery } from '../data/model'
 import { canSpeak, speak, useSpeaking } from '../speech'
@@ -119,5 +119,22 @@ export function RecordingButton({ url, word }: { url: string; word: string }) {
       </button>
       <audio ref={audio} src={url} preload="none" onPlay={() => setPlaying(true)} onEnded={() => setPlaying(false)} onPause={() => setPlaying(false)} />
     </>
+  )
+}
+
+/**
+ * The signed-in user's Google photo. If there is none, or it fails to load (Google's
+ * image server sometimes refuses), the first letter of their name on the accent colour.
+ */
+export function Avatar({ user, className = '' }: { user?: { name?: string; email?: string; picture?: string }; className?: string }) {
+  const [failed, setFailed] = useState(false)
+  const initial = (user?.name ?? user?.email ?? '').trim().charAt(0).toUpperCase()
+  useEffect(() => setFailed(false), [user?.picture])
+  if (user?.picture && !failed)
+    return <img className={`avatar ${className}`} src={user.picture} alt="" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+  return (
+    <span className={`avatar avatar-initial ${className}`} aria-hidden>
+      {initial}
+    </span>
   )
 }

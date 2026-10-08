@@ -1464,3 +1464,98 @@ p:hover .hover-only,
   font-size: 13px;
   font-weight: 600;
 }
+
+/* ---------- notebook: layout toggle and compact list ---------- */
+
+.layout-toggle {
+  order: 10; /* desktop: at the end of the toolbar */
+  display: inline-flex;
+  height: 42px;
+  padding: 3px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+}
+
+.layout-toggle button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.layout-toggle button[aria-pressed='true'] {
+  background: var(--marker);
+  color: var(--marker-ink);
+}
+
+.word-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 6px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.word-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 6px 12px 6px 16px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-m);
+  background: var(--card);
+  overflow: clip;
+  transition: translate 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+
+/* the K-band colour as a stripe on the left: still readable at a glance */
+.word-row::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: var(--fill);
+  border-right: 1.5px solid var(--line);
+}
+
+.word-row-word {
+  flex: none;
+  max-width: 55%;
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 21px;
+  color: var(--ink);
+}
+
+.word-row-meaning {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.word-row .mastery-meter {
+  flex: none;
+}
+
+.word-row:has(.card-link:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .word-row:hover {
+    translate: -1px -1px;
+    box-shadow: var(--pop);
+  }
+}

@@ -1,4 +1,5 @@
 import { BookOpen, History, Menu, Plus, Search, Settings, UserRound, X } from 'lucide-react'
+import { Avatar } from './ui'
 import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAppState } from '../app/state'
@@ -71,7 +72,7 @@ export function MobileTabBar() {
         <span>Flashback</span>
       </NavLink>
       <button className="tab" data-active={profileOpen} onClick={() => setProfileOpen(true)} aria-label="Your profile">
-        {user?.picture ? <img className="avatar tab-avatar" src={user.picture} alt="" referrerPolicy="no-referrer" /> : <UserRound size={21} />}
+        {user ? <Avatar user={user} className="tab-avatar" /> : <UserRound size={21} />}
         <span>Profile</span>
       </button>
     </nav>

@@ -1,4 +1,5 @@
 import { alive, metEncounters, type Entry } from './model'
+import { flashbackHistory } from './flashback'
 import { localDay } from './notebook'
 
 // Streaks, activity and achievements, all derived from the notebook itself: nothing
@@ -90,12 +91,30 @@ export interface Stats {
   metAgain: number
   rareWords: number
   longestStreak: number
+  /** the most different places one word was met in */
+  mostPlacesForOneWord: number
+  /** words added between midnight and 5 am */
+  lateNightWords: number
+  /** words of 12 letters or more */
+  longWords: number
+  /** expressions of two words or more */
+  phrases: number
+  flashbackRounds: number
+  /** Flashback rounds where every word was remembered the first time */
+  perfectRounds: number
 }
 
 export function stats(entries: Entry[], isRare: (word: string) => boolean, now = Date.now()): Stats {
   const words = entries.filter((e) => !e.deletedAt)
   const sources = new Set(words.flatMap((e) => metEncounters(e).map((x) => x.source)))
+  const rounds = flashbackHistory(words)
   return {
+    mostPlacesForOneWord: Math.max(0, ...words.map((e) => new Set(metEncounters(e).map((x) => x.source.trim().toLowerCase())).size)),
+    lateNightWords: words.filter((e) => new Date(e.createdAt).getHours() < 5).length,
+    longWords: words.filter((e) => !e.word.includes(' ') && e.word.length >= 12).length,
+    phrases: words.filter((e) => e.word.trim().includes(' ')).length,
+    flashbackRounds: rounds.length,
+    perfectRounds: rounds.filter((r) => r.words.length >= 3 && r.words.every((w) => w.result === 'first-try')).length,
     words: words.length,
     thisWeek: words.filter((e) => Date.parse(e.createdAt) > now - 7 * DAY).length,
     inUse: words.filter((e) => e.mastery === 'use').length,
@@ -126,22 +145,25 @@ const goal = (id: string, title: string, description: string, value: number, tar
   goal: target,
 })
 
+// Fewer "keep N words" counters, more things worth doing: meeting a word again,
+// using it, coming back to it, the odd late-night find.
 export function achievements(s: Stats): Achievement[] {
   return [
     goal('first-word', 'First page', 'Add your first word', s.words, 1),
-    goal('words-10', 'Ten words', 'Keep 10 words in your notebook', s.words, 10),
-    goal('words-50', 'Fifty', 'Keep 50 words in your notebook', s.words, 50),
-    goal('words-100', 'Century', 'Keep 100 words in your notebook', s.words, 100),
-    goal('words-500', 'Full shelf', 'Keep 500 words in your notebook', s.words, 500),
+    goal('echo', 'Echo', 'Meet one word in 3 different places', s.mostPlacesForOneWord, 3),
+    goal('met-again-5', 'Déjà vu', 'Meet 5 words again somewhere new', s.metAgain, 5),
+    goal('sources-5', 'Wide reader', 'Collect words from 5 different sources', s.sources, 5),
+    goal('phrases-5', 'Phrasebook', 'Collect 5 expressions of two words or more', s.phrases, 5),
+    goal('long-word', 'Mouthful', 'Add a word of 12 letters or more', s.longWords, 1),
+    goal('rare-5', 'Deep cuts', 'Add 5 words beyond the 10,000 most common families', s.rareWords, 5),
+    goal('night-owl', 'Night owl', 'Add a word between midnight and 5 am', s.lateNightWords, 1),
+    goal('use-1', 'Into the wild', 'Mark a word as “Use it”', s.inUse, 1),
+    goal('sentences-5', 'Wordsmith', 'Write your own sentence for 5 words', s.sentences, 5),
+    goal('notes-10', 'Scribbler', 'Write 10 notes', s.notes, 10),
+    goal('flashback-10', 'Time traveller', 'Finish 10 Flashback rounds', s.flashbackRounds, 10),
+    goal('perfect-round', 'Clean sweep', 'Remember every word of a Flashback round first time', s.perfectRounds, 1),
     goal('streak-3', 'Three in a row', 'Be active 3 days in a row', s.longestStreak, 3),
     goal('streak-7', 'A full week', 'Be active 7 days in a row', s.longestStreak, 7),
     goal('streak-30', 'Habit', 'Be active 30 days in a row', s.longestStreak, 30),
-    goal('use-1', 'Into the wild', 'Mark a word as “Use it”', s.inUse, 1),
-    goal('use-25', 'Active vocabulary', 'Mark 25 words as “Use it”', s.inUse, 25),
-    goal('sentences-5', 'Wordsmith', 'Write your own sentence for 5 words', s.sentences, 5),
-    goal('met-again-5', 'Déjà vu', 'Meet 5 words again somewhere new', s.metAgain, 5),
-    goal('sources-5', 'Wide reader', 'Collect words from 5 different sources', s.sources, 5),
-    goal('notes-10', 'Scribbler', 'Write 10 notes', s.notes, 10),
-    goal('rare-5', 'Deep cuts', 'Add 5 words beyond the 10,000 most common families', s.rareWords, 5),
   ]
 }

@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
+import { Avatar } from './ui'
 import { Award, BookOpen, Flame, Repeat, Settings, Sparkles, X } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -75,7 +76,7 @@ function ProfileContent({ entries, onClose }: { entries: Entry[]; onClose: () =>
       </button>
 
       <header className="profile-head">
-        {user?.picture ? <img className="avatar avatar-lg" src={user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-lg" />}
+        <Avatar user={user} className="avatar-lg" />
         <div>
           <h2 className="profile-name">{user?.name ?? user?.email ?? 'Your notebook'}</h2>
           {user?.name && user.email && <div className="faint small">{user.email}</div>}

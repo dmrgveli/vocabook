@@ -1,4 +1,5 @@
 import { RefreshCw } from 'lucide-react'
+import { Avatar } from './ui'
 import { useState } from 'react'
 import { useAppState } from '../app/state'
 import { signOut, useAuth } from '../sync/auth'
@@ -27,7 +28,7 @@ export function AccountCard() {
   return (
     <>
       <div className="account">
-        {user.picture ? <img className="avatar" src={user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar" />}
+        <Avatar user={user} />
         <div>
           <strong>{user.name ?? user.email}</strong>
           {user.name && user.email && <div className="faint small">{user.email}</div>}

@@ -9,6 +9,7 @@ import {
   practiceCount,
   shouldAskSize,
   commonSynonym,
+  flashbackHistory,
   shortDefinition,
   simpleMeaning,
   withGap,
@@ -188,5 +189,27 @@ describe('practice records', () => {
     for (let i = 0; i < MAX_PRACTICE_RECORDS + 3; i++) e = withPracticeRecord(e, 'first-try')
     expect(practiceCount(e)).toBe(MAX_PRACTICE_RECORDS)
     expect(e.encounters.filter((x) => x.deletedAt)).toHaveLength(3)
+  })
+})
+
+describe('flashbackHistory', () => {
+  it('groups records written together into rounds, newest first', () => {
+    const at = (iso: string) => (e: Entry): Entry => ({
+      ...e,
+      encounters: e.encounters.map((x, i, all) => (i === all.length - 1 ? { ...x, createdAt: iso } : x)),
+    })
+    let [a, b, c] = notebook
+    a = at('2026-10-01T10:00:00.000Z')(withPracticeRecord(a, 'first-try'))
+    b = at('2026-10-01T10:00:00.050Z')(withPracticeRecord(b, 'still-learning'))
+    a = at('2026-10-05T09:00:00.000Z')(withPracticeRecord(a, 'came-back'))
+    c = at('2026-10-05T09:00:00.020Z')(withPracticeRecord(c, 'first-try'))
+    const rounds = flashbackHistory([a, b, c])
+    expect(rounds).toHaveLength(2)
+    expect(rounds[0]).toMatchObject({ remembered: 2 })
+    expect(rounds[0].words.map((w) => [w.entry.word, w.result])).toEqual([
+      ['thrive', 'came-back'],
+      ['nuance', 'first-try'],
+    ])
+    expect(rounds[1].words.map((w) => w.result)).toEqual(['first-try', 'still-learning'])
   })
 })

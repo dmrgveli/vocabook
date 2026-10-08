@@ -1,4 +1,5 @@
 import { AlertTriangle, Check, CloudOff, HardDrive, LogIn, RefreshCw, Settings } from 'lucide-react'
+import { Avatar } from './ui'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAppState } from '../app/state'
@@ -95,7 +96,7 @@ export function SidebarAccount({ onNavigate }: { onNavigate?: () => void }) {
             }}
             aria-label="Open your profile"
           >
-            {auth.user.picture ? <img className="avatar" src={auth.user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar" />}
+            <Avatar user={auth.user} />
             <span className="profile-btn-text">
               <strong>{auth.user.name?.split(' ')[0] ?? auth.user.email ?? 'You'}</strong>
               <SyncStatusText />

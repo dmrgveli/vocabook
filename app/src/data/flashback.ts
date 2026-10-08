@@ -287,3 +287,45 @@ export function withPracticeRecord(entry: Entry, result: RoundResult, sentence?:
   const t = now()
   return { ...entry, encounters: encounters.map((e) => (drop.has(e.id) ? { ...e, deletedAt: t, updatedAt: t } : e)) }
 }
+
+/* ---------- history ---------- */
+
+export interface PastRound {
+  /** when the round finished (ISO) */
+  at: string
+  words: { entry: Entry; result: RoundResult }[]
+  remembered: number
+}
+
+/** Records written by one finished round land within moments of each other. */
+const SAME_ROUND_MS = 60_000
+const RESULT_BY_LABEL = new Map(Object.entries(RESULT_LABEL).map(([k, v]) => [`Flashback · ${v}`, k as RoundResult]))
+
+/**
+ * Past rounds, newest first, rebuilt from the records on each word's timeline (so they
+ * sync like everything else). Older rounds may look smaller: each word keeps only its
+ * latest MAX_PRACTICE_RECORDS records.
+ */
+export function flashbackHistory(entries: Entry[]): PastRound[] {
+  const records = entries
+    .filter((e) => !e.deletedAt)
+    .flatMap((entry) =>
+      alive(entry.encounters)
+        .filter(isPractice)
+        .map((enc) => ({ entry, at: enc.createdAt, result: RESULT_BY_LABEL.get(enc.source) ?? 'still-learning' })),
+    )
+    .sort((a, b) => a.at.localeCompare(b.at))
+
+  const rounds: PastRound[] = []
+  let current: PastRound | undefined
+  for (const r of records) {
+    if (!current || Date.parse(r.at) - Date.parse(current.at) > SAME_ROUND_MS) {
+      current = { at: r.at, words: [], remembered: 0 }
+      rounds.push(current)
+    }
+    current.at = r.at
+    current.words.push({ entry: r.entry, result: r.result })
+    if (r.result !== 'still-learning') current.remembered++
+  }
+  return rounds.reverse()
+}
