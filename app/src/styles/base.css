@@ -375,3 +375,28 @@ p {
 .result-count {
   font-variant-numeric: tabular-nums;
 }
+
+/* Cut long text after a number of lines with an ellipsis: class="clamp", and
+   style="--lines: 2" (default 3). The prefixed form is the one every browser supports
+   today; where the standard line-clamp exists it is used instead. overflow: clip
+   (not hidden) cuts without making the text a scroll container. */
+.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--lines, 3);
+  overflow: clip;
+}
+
+@supports (line-clamp: 3) {
+  .clamp {
+    display: block;
+    line-clamp: var(--lines, 3);
+  }
+}
+
+/* One line with an ellipsis, for names and sources that can be any length. */
+.truncate {
+  white-space: nowrap;
+  overflow: clip;
+  text-overflow: ellipsis;
+}

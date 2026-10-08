@@ -254,9 +254,9 @@ function WordCard({ entry }: { entry: Entry }) {
         {entry.enrichment?.phonetic && <span className="phonetic">{entry.enrichment.phonetic}</span>}
       </div>
       {entry.translation ? (
-        <p className="word-card-translation">{entry.translation}</p>
+        <p className="word-card-translation clamp">{entry.translation}</p>
       ) : definition ? (
-        <p className="word-card-definition">{definition}</p>
+        <p className="word-card-definition clamp">{definition}</p>
       ) : null}
       <div className="word-card-foot">
         <span className="word-card-source">

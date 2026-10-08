@@ -264,7 +264,7 @@ export function LookUpPage() {
 
       <VideosDrawer word={word} open={videosOpen} />
 
-      <div className="word-columns lookup-columns">
+      <div className="word-columns">
         <div className="word-col">
           {state.status === 'ready' ? (
             state.enrichment.definitionsFrom === 'none' && !hasCollocations(state.enrichment.collocations) ? (
@@ -278,7 +278,7 @@ export function LookUpPage() {
                 </p>
               </Panel>
             ) : (
-              <DictionaryPanels enrichment={state.enrichment} word={word} />
+              <DictionaryPanels enrichment={state.enrichment} word={word} part="main" />
             )
           ) : (
             <Panel title="Definitions">
@@ -299,14 +299,7 @@ export function LookUpPage() {
           )}
         </div>
         <div className="word-col">
-          <Panel title="Your notebook" delay={0.05}>
-            <p className="muted">
-              Met this word somewhere? Add it with where you saw it, and your translation, your sentence and notes will live here.
-            </p>
-            <button className="btn btn-marker" onClick={add}>
-              <Plus size={16} strokeWidth={2.5} /> Add “{word}”
-            </button>
-          </Panel>
+          {state.status === 'ready' && <DictionaryPanels enrichment={state.enrichment} word={word} part="extra" />}
         </div>
       </div>
     </div>
@@ -379,28 +372,43 @@ function Dictionary({ entry }: { entry: Entry }) {
   return <DictionaryPanels enrichment={e} word={entry.word} aside={refresh} />
 }
 
-/** Definitions, the word map, related words and origin: shared by word pages and look-ups. */
-function DictionaryPanels({ enrichment: e, word, aside }: { enrichment: Enrichment; word: string; aside?: React.ReactNode }) {
+/**
+ * Definitions, the word map, related words and origin: shared by word pages and look-ups.
+ * `part` splits them over two columns: 'main' (definitions, word map) and 'extra' (the rest).
+ */
+function DictionaryPanels({
+  enrichment: e,
+  word,
+  aside,
+  part,
+}: {
+  enrichment: Enrichment
+  word: string
+  aside?: React.ReactNode
+  part?: 'main' | 'extra'
+}) {
   return (
     <>
-      <Panel title="Definitions" aside={aside}>
-        <Definitions enrichment={e} word={word} />
-      </Panel>
+      {part !== 'extra' && (
+        <Panel title="Definitions" aside={aside}>
+          <Definitions enrichment={e} word={word} />
+        </Panel>
+      )}
 
-      {hasCollocations(e.collocations) && (
+      {part !== 'extra' && hasCollocations(e.collocations) && (
         <Panel title="Used together with" delay={0.05}>
           <Collocations word={word} collocations={e.collocations} />
         </Panel>
       )}
 
-      {(e.synonyms.length > 0 || e.antonyms.length > 0) && (
+      {part !== 'main' && (e.synonyms.length > 0 || e.antonyms.length > 0) && (
         <Panel title="Related words" delay={0.1}>
           {e.synonyms.length > 0 && <WordChips label="Similar" words={e.synonyms} />}
           {e.antonyms.length > 0 && <WordChips label="Opposite" words={e.antonyms} />}
         </Panel>
       )}
 
-      {e.origin && (
+      {part !== 'main' && e.origin && (
         <Panel title="Origin" delay={0.15}>
           <p className="muted">{e.origin}</p>
         </Panel>

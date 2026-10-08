@@ -183,18 +183,16 @@
 }
 
 .word-card-translation {
+  --lines: 2;
   margin: 4px 0 0;
   font-weight: 700;
 }
 
 .word-card-definition {
+  --lines: 2;
   margin: 4px 0 0;
   font-size: 13.5px;
   color: var(--ink-2);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .word-card-foot {
@@ -612,23 +610,11 @@
 }
 
 mark {
-  background: linear-gradient(transparent 55%, var(--marker) 55%);
-  color: var(--ink);
+  /* half a highlighter stroke on paper; the whole word on the dark page, where a thin stroke disappears */
+  background: linear-gradient(light-dark(transparent, var(--marker)) 55%, var(--marker) 55%);
+  color: light-dark(var(--ink), var(--marker-ink));
+  border-radius: 3px;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) mark {
-    color: var(--marker-ink);
-    background: var(--marker);
-    border-radius: 3px;
-  }
-}
-
-:root[data-theme='dark'] mark {
-    color: var(--marker-ink);
-    background: var(--marker);
-    border-radius: 3px;
-  }
 
 .hover-only {
   opacity: 0;
@@ -912,10 +898,6 @@ p:hover .hover-only,
   margin: 6px 0 0;
   font-size: 14px;
   line-height: 1.45;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .peek-actions {
@@ -1445,8 +1427,4 @@ p:hover .hover-only,
     transform: translate(-1px, -1px);
     box-shadow: var(--pop);
   }
-}
-
-.lookup-columns .word-col:last-child .btn {
-  margin-top: 12px;
 }

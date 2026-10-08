@@ -206,7 +206,7 @@ function PeekCard({ state }: { state: PeekState }) {
               {p.form && <span>from “{p.form}”</span>}
             </p>
           )}
-          <p className="peek-text">{p.definition ?? <span className="faint">No short definition found.</span>}</p>
+          <p className="peek-text clamp">{p.definition ?? <span className="faint">No short definition found.</span>}</p>
         </>
       )}
 

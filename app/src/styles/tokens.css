@@ -1,36 +1,42 @@
 /* Design tokens. Plain paper, ink outlines, a highlighter yellow and pastel fills
-   that carry meaning: the K band (how common a word is) colours its card everywhere. */
+   that carry meaning: the K band (how common a word is) colours its card everywhere.
+
+   One set of tokens for both themes: each colour is light-dark(<light>, <dark>), and
+   the browser picks the side from color-scheme. That follows the system, unless the
+   user picked a theme in Settings (data-theme on <html>, set by src/theme.ts). */
 
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --font-word: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
   --font-ui: 'Bricolage Grotesque Variable', system-ui, sans-serif;
 
-  --paper: #fbf8f3;
-  --card: #ffffff;
-  --ink: #1b1a1f;
-  --ink-2: #55525c;
-  --ink-3: #8f8b96;
-  --line: #1b1a1f;
-  --line-soft: #e8e2d8;
-  --hover: #f3eee6;
+  --paper: light-dark(#fbf8f3, #161519);
+  --card: light-dark(#ffffff, #1f1e23);
+  --ink: light-dark(#1b1a1f, #f2efe9);
+  --ink-2: light-dark(#55525c, #b8b3ab);
+  --ink-3: light-dark(#8f8b96, #7e7a84);
+  --line: light-dark(#1b1a1f, #d9d4cc);
+  --line-soft: light-dark(#e8e2d8, #333139);
+  --hover: light-dark(#f3eee6, #26252b);
 
+  /* the accent can be changed in Settings (src/theme.ts sets these two inline) */
   --marker: #ffd84d;
   --marker-ink: #1b1a1f;
-  --accent: #ff5a36;
-  --danger: #d63a2a;
+  --accent: light-dark(#ff5a36, #ff7a5c);
+  --danger: light-dark(#d63a2a, #ff7b6b);
 
-  --pop: 3px 3px 0 var(--line);
-  --pop-lg: 5px 5px 0 var(--line);
+  /* the offset shadow is ink on paper, and plain black on the dark page */
+  --pop: 3px 3px 0 light-dark(var(--line), #000);
+  --pop-lg: 5px 5px 0 light-dark(var(--line), #000);
 
   /* K bands: fill + ink */
-  --k1: #c8f0d4;    --k1-ink: #1f7a3d;
-  --k3: #cfe6ff;    --k3-ink: #1d5fa8;
-  --k5: #e2d9ff;    --k5-ink: #5b3fb8;
-  --k10: #ffe0c7;   --k10-ink: #b2541a;
-  --k20: #fff1a8;   --k20-ink: #8a6d00;
-  --rare: #ffd3e2;  --rare-ink: #b0255d;
-  --unknown: #f1ede6; --unknown-ink: #8f8b96;
+  --k1: light-dark(#c8f0d4, #20382a);      --k1-ink: light-dark(#1f7a3d, #7fdc9d);
+  --k3: light-dark(#cfe6ff, #1e2f45);      --k3-ink: light-dark(#1d5fa8, #8cc2ff);
+  --k5: light-dark(#e2d9ff, #2c2645);      --k5-ink: light-dark(#5b3fb8, #b7a6ff);
+  --k10: light-dark(#ffe0c7, #3d2b1f);     --k10-ink: light-dark(#b2541a, #ffb07a);
+  --k20: light-dark(#fff1a8, #3a3418);     --k20-ink: light-dark(#8a6d00, #f3d55b);
+  --rare: light-dark(#ffd3e2, #3d2030);    --rare-ink: light-dark(#b0255d, #ff8fb7);
+  --unknown: light-dark(#f1ede6, #26252b); --unknown-ink: light-dark(#8f8b96, #7e7a84);
 
   /* mastery: recognize → understand → use */
   --mastery-recognize: #ffcf5c;
@@ -43,62 +49,10 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Dark palette: follows the system unless the user picked a theme in Settings
-   (data-theme on <html>, set by src/theme.ts). The two blocks below are identical. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --paper: #161519;
-    --card: #1f1e23;
-    --ink: #f2efe9;
-    --ink-2: #b8b3ab;
-    --ink-3: #7e7a84;
-    --line: #d9d4cc;
-    --line-soft: #333139;
-    --hover: #26252b;
-
-    --marker: #ffd84d;
-    --marker-ink: #1b1a1f;
-    --accent: #ff7a5c;
-    --danger: #ff7b6b;
-
-    --pop: 3px 3px 0 #000;
-    --pop-lg: 5px 5px 0 #000;
-
-    --k1: #20382a;    --k1-ink: #7fdc9d;
-    --k3: #1e2f45;    --k3-ink: #8cc2ff;
-    --k5: #2c2645;    --k5-ink: #b7a6ff;
-    --k10: #3d2b1f;   --k10-ink: #ffb07a;
-    --k20: #3a3418;   --k20-ink: #f3d55b;
-    --rare: #3d2030;  --rare-ink: #ff8fb7;
-    --unknown: #26252b; --unknown-ink: #7e7a84;
-  }
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --paper: #161519;
-  --card: #1f1e23;
-  --ink: #f2efe9;
-  --ink-2: #b8b3ab;
-  --ink-3: #7e7a84;
-  --line: #d9d4cc;
-  --line-soft: #333139;
-  --hover: #26252b;
-
-  --marker: #ffd84d;
-  --marker-ink: #1b1a1f;
-  --accent: #ff7a5c;
-  --danger: #ff7b6b;
-
-  --pop: 3px 3px 0 #000;
-  --pop-lg: 5px 5px 0 #000;
-
-  --k1: #20382a;    --k1-ink: #7fdc9d;
-  --k3: #1e2f45;    --k3-ink: #8cc2ff;
-  --k5: #2c2645;    --k5-ink: #b7a6ff;
-  --k10: #3d2b1f;   --k10-ink: #ffb07a;
-  --k20: #3a3418;   --k20-ink: #f3d55b;
-  --rare: #3d2030;  --rare-ink: #ff8fb7;
-  --unknown: #26252b; --unknown-ink: #7e7a84;
 }
