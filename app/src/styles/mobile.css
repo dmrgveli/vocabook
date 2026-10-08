@@ -508,6 +508,19 @@
     font-size: 42px;
   }
 
+  .flash-options {
+    gap: 10px;
+  }
+
+  .flash-option.word-font {
+    font-size: 22px;
+  }
+
+  /* no keyboard on a phone: hide the number keys */
+  .flash-option kbd {
+    display: none;
+  }
+
   .flash-actions .btn {
     flex: 1;
     justify-content: center;
@@ -523,6 +536,16 @@
 
   .flash-progress li[data-state='now'] {
     width: 22px;
+  }
+
+  .flash-summary-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .size-custom {
+    flex-wrap: wrap;
   }
 
   /* ---------- profile ---------- */

@@ -5,9 +5,9 @@ import { Link } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { MOD_KEY } from '../components/Sidebar'
 import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
-import { FLASHBACK_MIN_WORDS, FLASHBACK_SIZE } from '../data/flashback'
+import { FLASHBACK_MIN_WORDS } from '../data/flashback'
 import { bandOfWord, K_BANDS, levelOf, MAX_LEVEL, useLevelsReady } from '../data/levels'
-import { alive, MASTERY_LABELS, normalizeWord, type Entry, type Mastery } from '../data/model'
+import { metEncounters, MASTERY_LABELS, normalizeWord, type Entry, type Mastery } from '../data/model'
 import { lookPath, wordPath } from '../data/paths'
 import {
   EMPTY_FILTERS,
@@ -131,7 +131,7 @@ export function Notebook({ entries }: { entries: Entry[] }) {
         </p>
         {entries.length >= FLASHBACK_MIN_WORDS && (
           <Link to="/flashback" className="btn flashback-cta">
-            <History size={16} /> Flashback <span className="faint">· {Math.min(entries.length, FLASHBACK_SIZE)} words</span>
+            <History size={16} /> Flashback
           </Link>
         )}
       </header>
@@ -244,7 +244,7 @@ function LookUpHint({ query, entries }: { query: string; entries: Entry[] }) {
 
 function WordCard({ entry }: { entry: Entry }) {
   const source = entrySource(entry)
-  const encounters = alive(entry.encounters).length
+  const encounters = metEncounters(entry).length
   const definition = entry.enrichment?.meanings[0]?.definitions[0]?.definition
   return (
     <article className={`word-card ${toneClass(entry.word)}`}>

@@ -17,7 +17,8 @@ export const MASTERY_HINTS: Record<Mastery, string> = {
   use: 'I can use it in my own sentences',
 }
 
-export const SOURCE_KINDS = ['show', 'movie', 'book', 'article', 'podcast', 'work', 'conversation', 'other'] as const
+// 'flashback' marks a practice round recorded on the word's timeline (data/flashback.ts).
+export const SOURCE_KINDS = ['show', 'movie', 'book', 'article', 'podcast', 'work', 'conversation', 'other', 'flashback'] as const
 export type SourceKind = (typeof SOURCE_KINDS)[number]
 
 /** ISO 8601 timestamp */
@@ -158,8 +159,16 @@ export function alive<T extends { deletedAt?: string }>(items: T[]): T[] {
 }
 
 /** The first encounter: where and when the word was learned. */
+/** A Flashback round on the timeline: practice, not a place where the word was met. */
+export const isPractice = (enc: Encounter) => enc.sourceKind === 'flashback'
+
+/** The real encounters: alive and not practice. Sources, counts and "met again" use these. */
+export function metEncounters(entry: Entry): Encounter[] {
+  return alive(entry.encounters).filter((e) => !isPractice(e))
+}
+
 export function firstEncounter(entry: Entry): Encounter | undefined {
-  return alive(entry.encounters).reduce<Encounter | undefined>(
+  return metEncounters(entry).reduce<Encounter | undefined>(
     (first, e) => (!first || e.date < first.date ? e : first),
     undefined,
   )

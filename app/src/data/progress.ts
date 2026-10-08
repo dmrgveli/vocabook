@@ -1,4 +1,4 @@
-import { alive, type Entry } from './model'
+import { alive, metEncounters, type Entry } from './model'
 import { localDay } from './notebook'
 
 // Streaks, activity and achievements, all derived from the notebook itself: nothing
@@ -94,16 +94,16 @@ export interface Stats {
 
 export function stats(entries: Entry[], isRare: (word: string) => boolean, now = Date.now()): Stats {
   const words = entries.filter((e) => !e.deletedAt)
-  const sources = new Set(words.flatMap((e) => alive(e.encounters).map((x) => x.source)))
+  const sources = new Set(words.flatMap((e) => metEncounters(e).map((x) => x.source)))
   return {
     words: words.length,
     thisWeek: words.filter((e) => Date.parse(e.createdAt) > now - 7 * DAY).length,
     inUse: words.filter((e) => e.mastery === 'use').length,
-    encounters: words.reduce((n, e) => n + alive(e.encounters).length, 0),
+    encounters: words.reduce((n, e) => n + metEncounters(e).length, 0),
     sentences: words.filter((e) => e.ownSentence).length,
     notes: words.reduce((n, e) => n + alive(e.notes).length, 0),
     sources: sources.size,
-    metAgain: words.filter((e) => alive(e.encounters).length >= 2).length,
+    metAgain: words.filter((e) => metEncounters(e).length >= 2).length,
     rareWords: words.filter((e) => isRare(e.word)).length,
     longestStreak: streaks(activityByDay(entries)).longest,
   }

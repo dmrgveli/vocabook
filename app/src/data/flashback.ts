@@ -1,18 +1,32 @@
-import { alive, type Entry, type Mastery } from './model'
+import { alive, createEncounter, isPractice, metEncounters, now, type Entry, type Mastery } from './model'
 
-// Flashback: a short round with your own words, back in the moment you met them.
+// Flashback: a short round of recall with your own words, back in the moment you met them.
 //
-// Retrieval practice (recalling beats re-reading) with the notebook's own context:
-//  - moment:  your encounter sentence with the word left out → recall the word
-//  - meaning: your translation or a definition → recall the word
-//  - word:    the word → recall what it means
-// Words you didn't remember come back once at the end of the round. Nothing is
-// scored or stored apart from "looked at" (lastViewedAt), which rests the word.
+// Every card is answered by picking one of four options (no typing):
+//  - moment:  your encounter sentence with a gap → which word fills it?
+//  - meaning: your translation or a definition → which word is it?
+//  - word:    the word → which meaning is it?
+// Wrong options are other words from your own notebook, so even a miss is a little
+// review. Words come in random order, but words that have been in fewer rounds are much
+// more likely to be picked, so over time every word comes round about equally often.
+// A finished round is written to each word's timeline (sourceKind 'flashback').
 
-export const FLASHBACK_MIN_WORDS = 3
-export const FLASHBACK_SIZE = 8
+export const FLASHBACK_MIN_WORDS = 5
+export const DEFAULT_ROUND_SIZE = 5
+/** With more words than this, the user picks the round size. */
+export const ASK_SIZE_ABOVE = 10
+export const ROUND_SIZES = [5, 10, 15] as const
+export const MIN_ROUND_SIZE = 3
+const OPTIONS = 4
+/** Older practice records on a word are dropped beyond this (the sync schema caps children). */
+export const MAX_PRACTICE_RECORDS = 20
 
 export type CardKind = 'moment' | 'meaning' | 'word'
+
+export interface Choice {
+  label: string
+  correct: boolean
+}
 
 export interface FlashCard {
   entry: Entry
@@ -21,11 +35,10 @@ export interface FlashCard {
   prompt: string
   /** where the sentence or the word came from */
   source?: string
+  choices: Choice[]
 }
 
-/** Words you know less well come back sooner (same idea as the reminder pop-up). */
-const MASTERY_WEIGHT: Record<Mastery, number> = { recognize: 1, understand: 0.7, use: 0.4 }
-const DAY = 864e5
+export type Random = () => number
 export const GAP = '_____'
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -39,8 +52,7 @@ function wordPattern(word: string): RegExp {
 
 /** The sentence with the word left out; undefined when the word is not in it. */
 export function withGap(sentence: string, word: string): string | undefined {
-  const pattern = wordPattern(word)
-  return pattern.test(sentence) ? sentence.replace(wordPattern(word), GAP) : undefined
+  return wordPattern(word).test(sentence) ? sentence.replace(wordPattern(word), GAP) : undefined
 }
 
 /** A clue must not give the answer away: the word itself becomes "…". */
@@ -52,65 +64,140 @@ export function clueFor(entry: Entry): string | undefined {
   return clue && hideWord(clue, entry.word)
 }
 
-/** Picks the words for a round: least recently looked at first, weighted by mastery. */
-export function pickFlashbackWords(entries: Entry[], now = Date.now(), size = FLASHBACK_SIZE): Entry[] {
+const definitionOf = (e: Entry) => e.enrichment?.meanings[0]?.definitions[0]?.definition
+
+/**
+ * Four meanings of the same kind for a "which meaning?" card: all translations, or all
+ * definitions. A lone Turkish option among English ones would give the answer away.
+ */
+function meaningChoices(entry: Entry, all: Entry[], random: Random): Choice[] | undefined {
+  for (const pick of [(e: Entry) => e.translation, definitionOf]) {
+    const answer = pick(entry)
+    if (!answer) continue
+    const others = distractors(entry, all, OPTIONS - 1, random, (e) => Boolean(pick(e)))
+    if (others.length < OPTIONS - 1) continue
+    // each option hides its own word, so none of them looks different
+    return shuffle(
+      [entry, ...others].map((e, i) => ({ label: hideWord(pick(e)!, e.word), correct: i === 0 })),
+      random,
+    )
+  }
+  return undefined
+}
+
+/** How many finished rounds a word has been in. */
+export const practiceCount = (entry: Entry) => alive(entry.encounters).filter(isPractice).length
+
+/** Words you know less well come up a little more often. */
+const MASTERY_WEIGHT: Record<Mastery, number> = { recognize: 1, understand: 0.8, use: 0.6 }
+
+/**
+ * Random words for a round, weighted towards words that were in fewer rounds
+ * (weight 1 / (1 + rounds)²: a new word is four times as likely as one seen once).
+ * Weighted sampling without replacement (Efraimidis–Spirakis).
+ */
+export function pickFlashbackWords(entries: Entry[], size: number, random: Random = Math.random): Entry[] {
   return entries
     .filter((e) => !e.deletedAt)
-    .map((e) => ({ e, score: ((now - Date.parse(e.lastViewedAt ?? e.createdAt)) / DAY + 0.01) * MASTERY_WEIGHT[e.mastery] }))
-    .sort((a, b) => b.score - a.score)
+    .map((e) => {
+      const weight = MASTERY_WEIGHT[e.mastery] / (1 + practiceCount(e)) ** 2
+      return { e, key: Math.pow(random() || Number.MIN_VALUE, 1 / weight) }
+    })
+    .sort((a, b) => b.key - a.key)
     .slice(0, size)
     .map((x) => x.e)
 }
 
-/** The card for a word. `prefer` varies the kind across a round when a word allows several. */
-export function cardFor(entry: Entry, prefer: CardKind = 'moment'): FlashCard {
-  const moments = alive(entry.encounters)
+export function shuffle<T>(items: T[], random: Random = Math.random): T[] {
+  const a = [...items]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+const partOfSpeech = (e: Entry) => e.enrichment?.meanings[0]?.partOfSpeech
+
+/** Other words from the notebook as wrong options, the same part of speech first. */
+function distractors(entry: Entry, all: Entry[], count: number, random: Random, usable: (e: Entry) => boolean = () => true): Entry[] {
+  const others = shuffle(
+    all.filter((e) => !e.deletedAt && e.id !== entry.id && e.word !== entry.word && usable(e)),
+    random,
+  )
+  const pos = partOfSpeech(entry)
+  const same = others.filter((e) => pos && partOfSpeech(e) === pos)
+  const rest = others.filter((e) => !same.includes(e))
+  return [...same, ...rest].slice(0, count)
+}
+
+/** The card for a word; `prefer` varies the kind across a round when the word allows several. */
+export function cardFor(entry: Entry, all: Entry[], prefer: CardKind = 'moment', random: Random = Math.random): FlashCard {
+  const wordChoices = () =>
+    shuffle(
+      [{ label: entry.word, correct: true }, ...distractors(entry, all, OPTIONS - 1, random).map((e) => ({ label: e.word, correct: false }))],
+      random,
+    )
+  const moments = metEncounters(entry)
     .filter((enc) => enc.sentence && withGap(enc.sentence, entry.word))
     .map((enc) => ({ prompt: withGap(enc.sentence!, entry.word)!, source: enc.source }))
   const clue = clueFor(entry)
-  const firstSource = [...alive(entry.encounters)].sort((a, b) => a.date.localeCompare(b.date))[0]?.source
+  const firstSource = [...metEncounters(entry)].sort((a, b) => a.date.localeCompare(b.date))[0]?.source
+  const meanings = meaningChoices(entry, all, random)
 
-  const options: FlashCard[] = []
-  if (moments.length) options.push({ entry, kind: 'moment', ...moments[moments.length - 1] })
-  if (clue) options.push({ entry, kind: 'meaning', prompt: clue, source: firstSource })
-  options.push({ entry, kind: 'word', prompt: entry.word, source: firstSource })
-  return options.find((o) => o.kind === prefer) ?? options[0]
-}
-
-/** A round: one card per word, kinds alternating where the word allows it. */
-export function buildRound(entries: Entry[], now = Date.now(), size = FLASHBACK_SIZE): FlashCard[] {
-  const order: CardKind[] = ['moment', 'meaning', 'word']
-  return pickFlashbackWords(entries, now, size).map((e, i) => cardFor(e, order[i % order.length]))
-}
-
-/** Edit distance where swapping two neighbouring letters ("thirve") counts as one typo. */
-function distance(a: string, b: string): number {
-  const d = Array.from({ length: a.length + 1 }, (_, i) => Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)))
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1
-      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost)
-      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1)
-    }
+  const options: (() => FlashCard)[] = []
+  const kinds: CardKind[] = []
+  if (moments.length) {
+    kinds.push('moment')
+    options.push(() => ({ entry, kind: 'moment', ...moments[Math.floor(random() * moments.length)], choices: wordChoices() }))
   }
-  return d[a.length][b.length]
+  if (clue) {
+    kinds.push('meaning')
+    options.push(() => ({ entry, kind: 'meaning', prompt: clue, source: firstSource, choices: wordChoices() }))
+  }
+  if (meanings) {
+    kinds.push('word')
+    options.push(() => ({ entry, kind: 'word', prompt: entry.word, source: firstSource, choices: meanings }))
+  }
+  // Nothing to ask with options (no sentence, no meaning yet): recall it and reveal.
+  if (options.length === 0) return { entry, kind: 'word', prompt: entry.word, source: firstSource, choices: [] }
+  const index = kinds.indexOf(prefer)
+  return options[index >= 0 ? index : 0]()
 }
 
-export type AnswerCheck = 'right' | 'close' | 'wrong'
-
-/** Forgiving: any inflection counts, a typo or two is "close". */
-export function checkAnswer(input: string, word: string): AnswerCheck {
-  const typed = input.trim().toLowerCase().replace(/\s+/g, ' ')
-  if (!typed) return 'wrong'
-  if (typed === word) return 'right'
-  const pattern = wordPattern(word)
-  const m = typed.match(pattern)
-  if (m && m[0] === typed && typed.length - word.length <= 4) return 'right'
-  const allowed = word.length >= 8 ? 2 : word.length >= 4 ? 1 : 0
-  return distance(typed, word) <= allowed ? 'close' : 'wrong'
+/** A round: one card per word, the kinds taking turns where a word allows it. */
+export function buildRound(entries: Entry[], size: number, random: Random = Math.random): FlashCard[] {
+  const order: CardKind[] = ['moment', 'meaning', 'word']
+  const start = Math.floor(random() * order.length)
+  return pickFlashbackWords(entries, size, random).map((e, i) => cardFor(e, entries, order[(start + i) % order.length], random))
 }
 
-/** "t _ _ _ _ _": the first letter and the length, spaces kept. */
-export function hintFor(word: string): string {
-  return [...word].map((c, i) => (i === 0 || c === ' ' || c === '-' ? c : '_')).join(' ')
+/** How many cards to play: 5 by default; above ASK_SIZE_ABOVE words the user chooses. */
+export const shouldAskSize = (wordCount: number) => wordCount > ASK_SIZE_ABOVE
+
+export function clampRoundSize(n: number, wordCount: number): number {
+  return Math.max(Math.min(MIN_ROUND_SIZE, wordCount), Math.min(Math.round(n) || DEFAULT_ROUND_SIZE, wordCount))
+}
+
+export type RoundResult = 'first-try' | 'came-back' | 'still-learning'
+
+export const RESULT_LABEL: Record<RoundResult, string> = {
+  'first-try': 'remembered',
+  'came-back': 'remembered the second time',
+  'still-learning': 'still settling in',
+}
+
+/**
+ * The word with this round written on its timeline. Only the latest
+ * MAX_PRACTICE_RECORDS practice records are kept; older ones are marked deleted.
+ */
+export function withPracticeRecord(entry: Entry, result: RoundResult, sentence?: string): Entry {
+  const record = createEncounter({ source: `Flashback · ${RESULT_LABEL[result]}`, sourceKind: 'flashback', sentence })
+  const encounters = [...entry.encounters, record]
+  const practice = alive(encounters)
+    .filter(isPractice)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  const drop = new Set(practice.slice(0, Math.max(0, practice.length - MAX_PRACTICE_RECORDS)).map((e) => e.id))
+  const t = now()
+  return { ...entry, encounters: encounters.map((e) => (drop.has(e.id) ? { ...e, deletedAt: t, updatedAt: t } : e)) }
 }

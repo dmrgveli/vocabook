@@ -1,9 +1,9 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { Plus, X } from 'lucide-react'
+import { History, Plus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { SourceInput } from '../../components/SourceInput'
 import { SpeakButton } from '../../components/ui'
-import { alive, createEncounter, createNote, now, type Entry } from '../../data/model'
+import { alive, createEncounter, createNote, isPractice, now, type Entry } from '../../data/model'
 import { allSources } from '../../data/notebook'
 import { useEntries } from '../../hooks'
 import { Panel } from './Panel'
@@ -62,7 +62,13 @@ export function Encounters({ entry, update }: { entry: Entry; update: Update }) 
               exit={{ opacity: 0, height: 0 }}
             >
               <div className="timeline-head">
-                <strong>{enc.source}</strong>
+                {isPractice(enc) ? (
+                  <span className="timeline-practice">
+                    <History size={13} /> {enc.source}
+                  </span>
+                ) : (
+                  <strong>{enc.source}</strong>
+                )}
                 <span className="faint">
                   {formatDate(enc.date)}
                   {i === 0 && ' · first met'}

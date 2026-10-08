@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { alive, type Entry, type Mastery } from './model'
+import { metEncounters, type Entry, type Mastery } from './model'
 
 // "A page from your notebook": when the app opens and the notebook has enough words,
 // a small, dismissable pop-up invites the user to look at a few words they haven't
@@ -43,7 +43,7 @@ export function reminderHint(entry: Entry): string | undefined {
 }
 
 export function reminderSource(entry: Entry): string | undefined {
-  return alive(entry.encounters).sort((a, b) => a.date.localeCompare(b.date))[0]?.source
+  return metEncounters(entry).sort((a, b) => a.date.localeCompare(b.date))[0]?.source
 }
 
 /* ---------- preference + once per app opening ---------- */

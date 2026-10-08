@@ -1,5 +1,5 @@
 import { bandOfWord, type KBand } from './levels'
-import { alive, firstEncounter, type Entry, type Mastery } from './model'
+import { alive, firstEncounter, metEncounters, type Entry, type Mastery } from './model'
 
 export interface Filters {
   query: string
@@ -30,7 +30,7 @@ export function filterEntries(entries: Entry[], f: Filters): Entry[] {
       (!q || matchesQuery(e, q, qTr)) &&
       (!f.band || bandOfWord(e.word) === f.band) &&
       (!f.mastery || e.mastery === f.mastery) &&
-      (!f.source || alive(e.encounters).some((enc) => enc.source === f.source)),
+      (!f.source || metEncounters(e).some((enc) => enc.source === f.source)),
   )
 }
 
@@ -45,7 +45,7 @@ export function localDay(timestamp: string): string {
 export function allSources(entries: Entry[]): { source: string; count: number }[] {
   const stats = new Map<string, { latest: string; words: Set<string> }>()
   for (const entry of entries) {
-    for (const enc of alive(entry.encounters)) {
+    for (const enc of metEncounters(entry)) {
       if (!enc.source) continue
       const s = stats.get(enc.source) ?? { latest: '', words: new Set() }
       if (enc.createdAt > s.latest) s.latest = enc.createdAt
