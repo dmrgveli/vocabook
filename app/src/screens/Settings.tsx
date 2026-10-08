@@ -8,7 +8,7 @@ import { AccountCard } from '../components/AccountCard'
 import { isEnrichmentCurrent, type Entry } from '../data/model'
 import { REMINDER_MIN_WORDS, setRemindersEnabled, useRemindersEnabled } from '../data/reminders'
 import { canSpeak, setSpeechPrefs, speak, useEnglishVoices, useSpeechPrefs } from '../speech'
-import { ACCENT_PRESETS, DEFAULT_ACCENT, inkOn, setAccent, setThemePref, useAccent, useThemePref, type ThemePref } from '../theme'
+import { ACCENT_PRESETS, DEFAULT_ACCENT, inkOn, setAccent, setThemePref, setWordColors, useAccent, useThemePref, useWordColors, type ThemePref, type WordColors } from '../theme'
 import { GOOGLE_PRIVACY_URL, setYouGlishConsent, useYouGlishConsent, YOUTUBE_TERMS_URL } from '../youglish'
 
 const CREATOR_INSTAGRAM = 'https://instagram.com/dmrgveli'
@@ -137,7 +137,39 @@ function AppearanceSettings() {
         </div>
       </Field>
       <AccentField />
+      <WordColorsField />
     </>
+  )
+}
+
+const WORD_COLOR_CHOICES: { id: WordColors; label: string; swatches: string[] }[] = [
+  { id: 'level', label: 'By level', swatches: ['var(--k1)', 'var(--k3)', 'var(--k5)', 'var(--k10)'] },
+  { id: 'calm', label: 'Calm', swatches: ['var(--calm)', 'var(--calm)', 'var(--calm)', 'var(--calm)'] },
+]
+
+/** Colourful word cards (by how common the word is) or one calm colour for all. */
+function WordColorsField() {
+  const value = useWordColors()
+  return (
+    <Field title="Word card colours" hint="By level colours each card by how common the word is. Calm gives every card one quiet colour; the small level badges stay coloured.">
+      <div className="choice choice-2" role="radiogroup" aria-label="Word card colours">
+        {WORD_COLOR_CHOICES.map((c) => (
+          <button key={c.id} role="radio" aria-checked={value === c.id} className="choice-btn" onClick={() => setWordColors(c.id)}>
+            {value === c.id && (
+              <motion.span layoutId="word-colors-thumb" className="choice-thumb" transition={{ type: 'spring', stiffness: 500, damping: 36 }} />
+            )}
+            <span className="choice-label">
+              <span className="mini-swatches" aria-hidden>
+                {c.swatches.map((bg, i) => (
+                  <i key={i} style={{ background: bg }} />
+                ))}
+              </span>
+              {c.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </Field>
   )
 }
 

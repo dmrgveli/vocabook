@@ -1559,3 +1559,116 @@ p:hover .hover-only,
     box-shadow: var(--pop);
   }
 }
+
+/* ---------- word card colours setting ---------- */
+
+.choice-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.mini-swatches {
+  display: inline-flex;
+}
+
+.mini-swatches i {
+  width: 12px;
+  height: 12px;
+  margin-left: -4px;
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+}
+
+.mini-swatches i:first-child {
+  margin-left: 0;
+}
+
+/* ---------- compact list: hover preview (desktop) ---------- */
+
+.word-preview {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-l);
+  background: var(--card);
+  box-shadow: var(--pop-lg);
+  pointer-events: none;
+}
+
+/* the word's level colour as a band along the top */
+.word-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 8px;
+  border-bottom: 1.5px solid var(--line);
+  border-radius: var(--r-l) var(--r-l) 0 0;
+  background: var(--fill);
+}
+
+.word-preview-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.word-preview-word {
+  font-size: 32px;
+  line-height: 1.05;
+}
+
+.word-preview p {
+  margin: 0;
+}
+
+.word-preview-ipa {
+  margin-top: -4px !important;
+}
+
+.word-preview-translation {
+  font-weight: 700;
+}
+
+.word-preview-def {
+  --lines: 2;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+.word-preview-def .pos {
+  flex: none;
+  margin: 0;
+  font-size: 11px;
+}
+
+.word-preview-sentence {
+  margin: 2px 0 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--marker);
+  font-size: 16px;
+}
+
+.word-preview-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1.5px dashed var(--line-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tone);
+}
+
+.word-preview-date {
+  font-size: 11.5px;
+}

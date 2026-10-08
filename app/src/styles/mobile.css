@@ -124,23 +124,26 @@
     overflow: hidden;
   }
 
-  /* ---------- bottom navigation: a floating pill, off the screen's edge ---------- */
+  /* ---------- bottom navigation: a light floating pill, off the screen's edge ---------- */
 
   .tab-bar {
     position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 16px;
+    right: 16px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
     z-index: 35;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     align-items: center;
-    height: 64px;
-    padding: 0 6px;
-    border: 1.5px solid var(--line);
+    height: 58px;
+    padding: 0 4px;
+    border: 1px solid color-mix(in oklch, var(--line) 55%, transparent);
     border-radius: 999px;
     background: var(--card);
-    box-shadow: var(--pop);
+    /* the site's offset shadow, only softer */
+    box-shadow:
+      2px 3px 0 color-mix(in oklch, var(--line) 18%, transparent),
+      0 10px 28px -12px color-mix(in oklch, var(--line) 35%, transparent);
   }
 
   .tab {
@@ -148,32 +151,53 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    height: 54px;
+    gap: 1px;
+    height: 50px;
     padding: 0;
     border: 0;
-    border-radius: 999px;
     background: none;
     color: var(--ink-3);
     font: inherit;
-    font-size: 10.5px;
-    font-weight: 700;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
     text-decoration: none;
     cursor: pointer;
-    transition: background 0.2s var(--ease), color 0.2s;
+    transition: color 0.2s;
   }
 
-  /* the current tab: a highlighter pill behind icon and label */
+  .tab > svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 1.8;
+    box-sizing: content-box;
+    padding: 3px 12px;
+    border-radius: 999px;
+    transition: background 0.25s var(--ease), color 0.2s;
+  }
+
+  /* the current tab: a small highlighter dab behind the icon */
   .tab[data-active='true'] {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  .tab[data-active='true'] > svg {
+    background: color-mix(in oklch, var(--marker) 75%, transparent);
     color: var(--marker-ink);
-    background: var(--marker);
+    stroke-width: 2.2;
   }
 
   .tab-avatar {
-    width: 24px;
-    height: 24px;
-    font-size: 12px;
-    border: 1.5px solid var(--line);
+    width: 22px;
+    height: 22px;
+    margin: 3px 0;
+    font-size: 11px;
+    border: 1px solid var(--line);
+  }
+
+  .tab[data-active='true'] .tab-avatar {
+    box-shadow: 0 0 0 2.5px var(--marker);
   }
 
   .tab:active > svg,
@@ -181,10 +205,9 @@
     scale: 0.92;
   }
 
-  /* Add: a larger circle with its own shadow, standing out of the pill */
+  /* Add: the one bold thing in the bar, sitting inside it */
   .tab-add,
   .tab-add[data-active] {
-    background: none;
     color: var(--ink);
   }
 
@@ -195,16 +218,21 @@
   .tab-add-circle {
     display: grid;
     place-items: center;
-    width: 56px;
-    height: 56px;
+    width: 46px;
+    height: 46px;
     border: 1.5px solid var(--line);
     border-radius: 50%;
     background: var(--marker);
     color: var(--marker-ink);
     box-shadow:
-      3px 3px 0 var(--line),
-      0 8px 18px -4px color-mix(in oklch, var(--marker) 70%, transparent);
+      2px 2px 0 var(--line),
+      0 6px 14px -4px color-mix(in oklch, var(--marker) 80%, transparent);
     transition: scale 0.15s var(--ease);
+  }
+
+  .tab-add-circle svg {
+    width: 22px;
+    height: 22px;
   }
 
   /* the notebook header's Flashback button: the bar has one already */

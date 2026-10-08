@@ -29,6 +29,7 @@ function apply() {
 export function initTheme() {
   apply()
   applyAccent()
+  applyWordColors()
   // Following the system: re-render things that depend on the resolved theme.
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => listeners.forEach((l) => l()))
 }
@@ -141,4 +142,45 @@ export function setAccent(color: string) {
 
 export function useAccent(): string {
   return useSyncExternalStore(subscribe, () => accent)
+}
+
+/* ---------- word colours ---------- */
+
+// 'level': word cards are coloured by how common the word is (the default).
+// 'calm': every card in one quiet colour (a soft sage on paper, a deep slate when dark);
+// the small K badges keep their colours. Applied as data-word-colors on <html>.
+
+export type WordColors = 'level' | 'calm'
+const WORD_COLORS_KEY = 'word-colors'
+
+function readWordColors(): WordColors {
+  try {
+    return localStorage.getItem(WORD_COLORS_KEY) === 'calm' ? 'calm' : 'level'
+  } catch {
+    return 'level'
+  }
+}
+
+let wordColors = readWordColors()
+
+function applyWordColors() {
+  const root = document.documentElement
+  if (wordColors === 'calm') root.dataset.wordColors = 'calm'
+  else delete root.dataset.wordColors
+}
+
+export function setWordColors(next: WordColors) {
+  wordColors = next
+  try {
+    if (next === 'calm') localStorage.setItem(WORD_COLORS_KEY, next)
+    else localStorage.removeItem(WORD_COLORS_KEY)
+  } catch {
+    // storage unavailable: the choice lasts for this session
+  }
+  applyWordColors()
+  listeners.forEach((l) => l())
+}
+
+export function useWordColors(): WordColors {
+  return useSyncExternalStore(subscribe, () => wordColors)
 }

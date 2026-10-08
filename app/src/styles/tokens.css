@@ -38,6 +38,10 @@
   --rare: light-dark(#ffd3e2, #3d2030);    --rare-ink: light-dark(#b0255d, #ff8fb7);
   --unknown: light-dark(#f1ede6, #26252b); --unknown-ink: light-dark(#8f8b96, #7e7a84);
 
+  /* "Calm" word colours (Settings → Appearance): one quiet fill for every word card */
+  --calm: light-dark(#e6ede3, #24282e);
+  --calm-ink: light-dark(#4b6a52, #a9b7c5);
+
   /* mastery: recognize → understand → use */
   --mastery-recognize: #ffcf5c;
   --mastery-understand: #ff9b54;

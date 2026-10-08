@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { MOD_KEY } from '../components/Sidebar'
 import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
+import { useWordPreview, WordPreview } from '../components/WordPreview'
 import { FLASHBACK_MIN_WORDS } from '../data/flashback'
 import { bandOfWord, K_BANDS, levelOf, MAX_LEVEL, useLevelsReady } from '../data/levels'
 import { metEncounters, MASTERY_LABELS, normalizeWord, type Entry, type Mastery } from '../data/model'
@@ -94,6 +95,7 @@ export function Notebook({ entries }: { entries: Entry[] }) {
   // Card colours and the "how common" filter come from the BNC/COCA table, which loads in the background.
   const levelsReady = useLevelsReady()
   const [view, setView] = useNotebookView()
+  const preview = useWordPreview()
   const pages = useMemo(
     () => groupEntries(sortEntries(filterEntries(entries, filters), view.sort, numericLevel), view.group, bandOfWord),
     [entries, filters, view, levelsReady],
@@ -219,7 +221,7 @@ export function Notebook({ entries }: { entries: Entry[] }) {
             {view.layout === 'compact' ? (
               <ul className="word-list">
                 {entries.map((e) => (
-                  <li key={e.id}>
+                  <li key={e.id} {...preview.handlers(e)}>
                     <CompactWord entry={e} />
                   </li>
                 ))}
@@ -241,6 +243,7 @@ export function Notebook({ entries }: { entries: Entry[] }) {
           </section>
         ))
       )}
+      {view.layout === 'compact' && <WordPreview target={preview.target} />}
     </div>
   )
 }

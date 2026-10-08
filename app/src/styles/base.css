@@ -263,6 +263,12 @@ button.chip:hover {
 .tone-rare { --fill: var(--rare); --tone: var(--rare-ink); }
 .tone-unknown { --fill: var(--unknown); --tone: var(--unknown-ink); }
 
+/* Calm word colours: cards and list rows in one colour; their small K badges keep theirs */
+:root[data-word-colors='calm'] :is(.word-card, .word-row) {
+  --fill: var(--calm);
+  --tone: var(--calm-ink);
+}
+
 .k-badge {
   display: inline-flex;
   align-items: baseline;
