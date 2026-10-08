@@ -1,3 +1,4 @@
+import { levelOf } from './levels'
 import { alive, createEncounter, isPractice, metEncounters, now, type Entry, type Mastery } from './model'
 
 // Flashback: a short round of recall with your own words, back in the moment you met them.
@@ -58,29 +59,108 @@ export function withGap(sentence: string, word: string): string | undefined {
 /** A clue must not give the answer away: the word itself becomes "…". */
 const hideWord = (text: string, word: string) => text.replace(wordPattern(word), '…')
 
-export function clueFor(entry: Entry): string | undefined {
-  const definition = entry.enrichment?.meanings[0]?.definitions[0]?.definition
-  const clue = entry.translation ?? definition
+/** Options and clues longer than this are hard to take in at a glance. */
+export const SHORT_MEANING = 70
+
+/** "(intransitive) To grow vigorously." → "To grow vigorously." */
+const cleanDefinition = (d: string) => d.replace(/^(\s*\([^)]*\)\s*)+/, '').trim()
+
+/**
+ * The simplest definition: the shortest of the first few senses, looking at the first
+ * part of speech before the others (the first senses are the common ones). Definitions
+ * that use the word itself ("knee" → "To kneel to.") are skipped: hiding the word would
+ * leave nothing. Undefined if every candidate is long.
+ */
+export function shortDefinition(entry: Entry): string | undefined {
+  for (const m of entry.enrichment?.meanings ?? []) {
+    const shortest = m.definitions
+      .slice(0, 3)
+      .map((d) => cleanDefinition(d.definition))
+      .filter((d) => d.length >= 8 && !wordPattern(entry.word).test(d))
+      .sort((a, b) => a.length - b.length)[0]
+    if (shortest && shortest.length <= SHORT_MEANING) return shortest
+  }
+  return undefined
+}
+
+/** How common a word is, for ranking synonyms: its K level (1 = most common). */
+export type Commonness = (word: string) => number | undefined
+const kLevel: Commonness = (word) => {
+  const l = levelOf(word)
+  return l === undefined || l.level === 'off' ? undefined : l.level
+}
+
+/** A synonym this common or more (K level) is a plain word anyone would know. */
+const PLAIN_SYNONYM_LEVEL = 5
+
+/**
+ * The most common single-word synonym ("thrive" → "boom"), as "≈ boom". With `maxLevel`,
+ * only a synonym at least that common counts: thesaurus entries can be odd
+ * ("knee" → "stifle", a horse's knee joint).
+ */
+export function commonSynonym(entry: Entry, commonness: Commonness = kLevel, maxLevel = Infinity): string | undefined {
+  const ranked = (entry.enrichment?.synonyms ?? [])
+    .filter((w) => w !== entry.word && !wordPattern(entry.word).test(w))
+    .map((w, i) => ({ w, i, phrase: w.includes(' ') ? 1 : 0, k: commonness(w) ?? 99 }))
+    .sort((a, b) => a.phrase - b.phrase || a.k - b.k || a.i - b.i)
+  const best = ranked[0]
+  return best && best.k <= maxLevel ? `≈ ${best.w}` : undefined
+}
+
+/** The main definition cut down to its first clause, or to SHORT_MEANING characters. */
+export function trimmedDefinition(entry: Entry): string | undefined {
+  const first = (entry.enrichment?.meanings ?? [])
+    .flatMap((m) => m.definitions)
+    .map((d) => cleanDefinition(d.definition))
+    .find((d) => d.length >= 8 && !wordPattern(entry.word).test(d))
+  if (!first) return undefined
+  const clause = first.split(/;\s/)[0]
+  if (clause.length <= SHORT_MEANING) return clause.length >= 20 || clause === first ? clause : `${clause}…`
+  const cut = clause.slice(0, SHORT_MEANING - 1)
+  return `${cut.slice(0, cut.lastIndexOf(' ')).replace(/[,;:]$/, '')}…`
+}
+
+/**
+ * The meaning in a few words: a short definition; else a plain, common synonym; else the
+ * main definition cut short; else any synonym.
+ */
+export function simpleMeaning(entry: Entry, commonness: Commonness = kLevel): string | undefined {
+  return (
+    shortDefinition(entry) ??
+    commonSynonym(entry, commonness, PLAIN_SYNONYM_LEVEL) ??
+    trimmedDefinition(entry) ??
+    commonSynonym(entry, commonness)
+  )
+}
+
+/** The clue for "which word is it?": your translation, else the simplest meaning. */
+export function clueFor(entry: Entry, commonness: Commonness = kLevel): string | undefined {
+  const clue = entry.translation ?? simpleMeaning(entry, commonness)
   return clue && hideWord(clue, entry.word)
 }
 
-const definitionOf = (e: Entry) => e.enrichment?.meanings[0]?.definitions[0]?.definition
-
 /**
  * Four meanings of the same kind for a "which meaning?" card: all translations, or all
- * definitions. A lone Turkish option among English ones would give the answer away.
+ * short English meanings. A lone Turkish option among English ones would give the
+ * answer away; so would a lone "≈ synonym" among definitions, so a set of definitions
+ * is tried first, then a set of synonyms, and only then a mix.
  */
-function meaningChoices(entry: Entry, all: Entry[], random: Random): Choice[] | undefined {
-  for (const pick of [(e: Entry) => e.translation, definitionOf]) {
+function meaningChoices(entry: Entry, all: Entry[], random: Random, commonness: Commonness): Choice[] | undefined {
+  const kinds: ((e: Entry) => string | undefined)[] = [
+    (e) => e.translation,
+    shortDefinition,
+    (e) => commonSynonym(e, commonness, PLAIN_SYNONYM_LEVEL),
+    (e) => simpleMeaning(e, commonness),
+  ]
+  for (const pick of kinds) {
     const answer = pick(entry)
     if (!answer) continue
     const others = distractors(entry, all, OPTIONS - 1, random, (e) => Boolean(pick(e)))
     if (others.length < OPTIONS - 1) continue
     // each option hides its own word, so none of them looks different
-    return shuffle(
-      [entry, ...others].map((e, i) => ({ label: hideWord(pick(e)!, e.word), correct: i === 0 })),
-      random,
-    )
+    const options = [entry, ...others].map((e, i) => ({ label: hideWord(pick(e)!, e.word), correct: i === 0 }))
+    if (new Set(options.map((o) => o.label)).size < OPTIONS) continue
+    return shuffle(options, random)
   }
   return undefined
 }
@@ -132,7 +212,13 @@ function distractors(entry: Entry, all: Entry[], count: number, random: Random, 
 }
 
 /** The card for a word; `prefer` varies the kind across a round when the word allows several. */
-export function cardFor(entry: Entry, all: Entry[], prefer: CardKind = 'moment', random: Random = Math.random): FlashCard {
+export function cardFor(
+  entry: Entry,
+  all: Entry[],
+  prefer: CardKind = 'moment',
+  random: Random = Math.random,
+  commonness: Commonness = kLevel,
+): FlashCard {
   const wordChoices = () =>
     shuffle(
       [{ label: entry.word, correct: true }, ...distractors(entry, all, OPTIONS - 1, random).map((e) => ({ label: e.word, correct: false }))],
@@ -141,9 +227,9 @@ export function cardFor(entry: Entry, all: Entry[], prefer: CardKind = 'moment',
   const moments = metEncounters(entry)
     .filter((enc) => enc.sentence && withGap(enc.sentence, entry.word))
     .map((enc) => ({ prompt: withGap(enc.sentence!, entry.word)!, source: enc.source }))
-  const clue = clueFor(entry)
+  const clue = clueFor(entry, commonness)
   const firstSource = [...metEncounters(entry)].sort((a, b) => a.date.localeCompare(b.date))[0]?.source
-  const meanings = meaningChoices(entry, all, random)
+  const meanings = meaningChoices(entry, all, random, commonness)
 
   const options: (() => FlashCard)[] = []
   const kinds: CardKind[] = []

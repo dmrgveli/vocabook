@@ -73,7 +73,7 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
           <span className="row">
             <Search size={17} />
           </span>
-          <span>Look up a word</span>
+          <span>Search &amp; look up</span>
         </button>
       </nav>
 

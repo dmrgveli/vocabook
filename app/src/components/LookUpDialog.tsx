@@ -3,12 +3,15 @@ import { CornerDownLeft, Search, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
-import { normalizeWord } from '../data/model'
-import { lookPath } from '../data/paths'
-import { useSuggestions } from '../hooks'
+import { normalizeWord, type Entry } from '../data/model'
+import { lookPath, wordPath } from '../data/paths'
+import { useEntries, useSuggestions } from '../hooks'
 import { KBadge } from './ui'
 
-/** Find any word and open its page without adding it to the notebook. */
+/**
+ * One search for both: words already in your notebook (by word or translation) come
+ * first and open their page; any other word opens a look-up without adding it.
+ */
 export function LookUpDialog() {
   const { lookUpOpen, setLookUpOpen } = useAppState()
   const close = () => setLookUpOpen(false)
@@ -27,7 +30,7 @@ export function LookUpDialog() {
             className="dialog"
             role="dialog"
             aria-modal="true"
-            aria-label="Look up a word"
+            aria-label="Search or look up a word"
             initial={{ opacity: 0, y: -12, rotate: -1 }}
             animate={{ opacity: 1, y: 0, rotate: 0 }}
             exit={{ opacity: 0, y: -6 }}
@@ -41,26 +44,52 @@ export function LookUpDialog() {
   )
 }
 
+const MAX_OWN = 4
+
+/** Notebook words matching the query: the word starts with it, then contains it, then the translation does. */
+function matchOwn(entries: Entry[], q: string): Entry[] {
+  if (!q) return []
+  const score = (e: Entry) =>
+    e.word.startsWith(q) ? 0 : e.word.includes(q) ? 1 : e.translation?.toLocaleLowerCase('tr').includes(q) ? 2 : -1
+  return entries
+    .map((e) => ({ e, s: score(e) }))
+    .filter((x) => x.s >= 0)
+    .sort((a, b) => a.s - b.s || a.e.word.localeCompare(b.e.word))
+    .slice(0, MAX_OWN)
+    .map((x) => x.e)
+}
+
+type Option = { kind: 'own'; entry: Entry } | { kind: 'look'; word: string; frequency?: number }
+
 function LookUpForm({ onDone }: { onDone: () => void }) {
   const navigate = useNavigate()
+  const entries = useEntries()
   const [input, setInput] = useState('')
   const [highlight, setHighlight] = useState(0)
   const suggestions = useSuggestions(input, true)
   const typed = normalizeWord(input)
-  const options = typed && !suggestions.items.some((s) => s.word === typed) ? [...suggestions.items, { word: typed }] : suggestions.items
 
-  useEffect(() => setHighlight(0), [suggestions.items])
+  const own = matchOwn(entries ?? [], typed)
+  const ownWords = new Set(own.map((e) => e.word))
+  const inNotebook = new Set((entries ?? []).map((e) => e.word))
+  const look = suggestions.items.filter((s) => !inNotebook.has(s.word))
+  if (typed && !inNotebook.has(typed) && !look.some((s) => s.word === typed)) look.push({ word: typed })
+  const options: Option[] = [
+    ...own.map((entry) => ({ kind: 'own' as const, entry })),
+    ...look.filter((s) => !ownWords.has(s.word)).map((s) => ({ kind: 'look' as const, ...s })),
+  ]
+
+  useEffect(() => setHighlight(0), [suggestions.items, typed])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onDone()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onDone])
 
-  const open = (word: string) => {
-    const w = normalizeWord(word)
-    if (!w) return
+  const open = (o: Option | undefined) => {
+    if (!o) return
     onDone()
-    navigate(lookPath(w))
+    navigate(o.kind === 'own' ? wordPath(o.entry.word) : lookPath(o.word))
   }
 
   return (
@@ -73,8 +102,8 @@ function LookUpForm({ onDone }: { onDone: () => void }) {
           autoComplete="off"
           autoCapitalize="none"
           spellCheck={false}
-          placeholder="Look up any word…"
-          aria-label="Word to look up"
+          placeholder="Your words or any word…"
+          aria-label="Search your notebook or look up a word"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -86,33 +115,44 @@ function LookUpForm({ onDone }: { onDone: () => void }) {
               setHighlight((h) => Math.max(h - 1, 0))
             } else if (e.key === 'Enter') {
               e.preventDefault()
-              open(options[highlight]?.word ?? typed)
+              open(options[highlight])
             }
           }}
         />
         {suggestions.status === 'loading' && <span className="spinner" />}
       </div>
       {typed ? (
-        <ul className="palette-options" role="listbox" aria-label="Suggestions">
+        <ul className="palette-options" role="listbox" aria-label="Results">
+          {options.map((o, i) => {
+            const firstLook = o.kind === 'look' && (i === 0 || options[i - 1].kind === 'own')
+            return (
+              <li key={o.kind === 'own' ? o.entry.id : o.word}>
+                {i === 0 && o.kind === 'own' && <p className="palette-group">In your notebook</p>}
+                {firstLook && <p className="palette-group">Look up</p>}
+                <button type="button" role="option" aria-selected={i === highlight} onMouseEnter={() => setHighlight(i)} onClick={() => open(o)}>
+                  <span className="word-font option-word" lang="en">
+                    {o.kind === 'own' ? o.entry.word : o.word}
+                  </span>
+                  {o.kind === 'own' ? (
+                    <span className="faint small option-note">{o.entry.translation ?? 'Open'}</span>
+                  ) : o.frequency === undefined ? (
+                    <span className="faint">Look up as typed</span>
+                  ) : (
+                    <KBadge word={o.word} plain />
+                  )}
+                  {i === highlight && <CornerDownLeft size={14} className="faint" />}
+                </button>
+              </li>
+            )
+          })}
           {suggestions.status === 'error' && (
             <li className="palette-note">
               <WifiOff size={14} /> Suggestions are unavailable right now.
             </li>
           )}
-          {options.map((s, i) => (
-            <li key={s.word}>
-              <button type="button" role="option" aria-selected={i === highlight} onMouseEnter={() => setHighlight(i)} onClick={() => open(s.word)}>
-                <span className="word-font option-word" lang="en">
-                  {s.word}
-                </span>
-                {s.frequency === undefined ? <span className="faint">Look up as typed</span> : <KBadge word={s.word} plain />}
-                {i === highlight && <CornerDownLeft size={14} className="faint" />}
-              </button>
-            </li>
-          ))}
         </ul>
       ) : (
-        <p className="palette-hint faint small">Read about a word first; add it to your notebook only if you want to.</p>
+        <p className="palette-hint faint small">Find a word in your notebook, or read about any word before deciding to add it.</p>
       )}
     </div>
   )

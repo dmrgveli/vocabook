@@ -4,7 +4,7 @@
 
 .mobile-bar,
 .menu-scrim,
-.mobile-add {
+.tab-bar {
   display: none;
 }
 
@@ -17,6 +17,8 @@
   .app {
     display: block;
     height: auto;
+    /* nothing (e.g. a hidden tooltip) may widen the page: fixed bars would slide off-screen */
+    overflow-x: clip;
   }
 
   .main {
@@ -122,25 +124,99 @@
     overflow: hidden;
   }
 
-  /* ---------- add button ---------- */
+  /* ---------- bottom navigation ---------- */
 
-  .mobile-add {
-    display: inline-flex;
+  .tab-bar {
     position: fixed;
-    right: 16px;
-    bottom: calc(18px + env(safe-area-inset-bottom));
+    inset: auto 0 0;
     z-index: 35;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: end;
+    height: calc(64px + env(safe-area-inset-bottom));
+    padding: 0 6px env(safe-area-inset-bottom);
+    background: var(--paper);
+    border-top: 1.5px solid var(--line);
+  }
+
+  .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 64px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink-3);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  /* the icon sits on a highlighter pill when its tab is the current one */
+  .tab > svg,
+  .tab-avatar {
+    box-sizing: content-box;
+    padding: 4px 14px;
+    border-radius: 999px;
+    transition: background 0.2s var(--ease), color 0.2s;
+  }
+
+  .tab[data-active='true'] {
+    color: var(--ink);
+  }
+
+  .tab[data-active='true'] > svg {
+    background: var(--marker);
+    color: var(--marker-ink);
+  }
+
+  .tab-avatar {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1.5px solid transparent;
+  }
+
+  .tab[data-active='true'] .tab-avatar {
+    border-color: var(--line);
+    box-shadow: 0 0 0 3px var(--marker);
+  }
+
+  .tab:active > svg,
+  .tab:active .tab-add-circle {
+    scale: 0.92;
+  }
+
+  /* Add: larger, raised above the bar */
+  .tab-add {
+    justify-content: flex-end;
+    padding-bottom: 7px;
+    color: var(--ink);
+  }
+
+  .tab-add-circle {
+    display: grid;
+    place-items: center;
     width: 58px;
     height: 58px;
-    padding: 0;
+    margin-top: -26px;
+    border: 1.5px solid var(--line);
     border-radius: 50%;
-    box-shadow: var(--pop-lg);
+    background: var(--marker);
+    color: var(--marker-ink);
+    box-shadow: var(--pop);
+    transition: scale 0.15s var(--ease);
   }
 
   .toaster {
     left: 12px;
     right: 12px;
-    bottom: calc(90px + env(safe-area-inset-bottom));
+    bottom: calc(78px + env(safe-area-inset-bottom));
     align-items: stretch;
   }
 
@@ -298,6 +374,19 @@
     transform: none;
   }
 
+  /* card badges sit at the card's right edge: their tooltip opens leftwards */
+  .word-card .tip-bubble {
+    left: auto;
+    right: -6px;
+    transform: translate(0, 4px);
+  }
+
+  .word-card .tip:hover .tip-bubble,
+  .word-card .tip:focus-visible .tip-bubble,
+  .word-card .tip:focus-within .tip-bubble {
+    transform: none;
+  }
+
   /* ---------- dialogs ---------- */
 
   .overlay,
@@ -362,21 +451,6 @@
     gap: 2px;
   }
 
-  .profile-chip {
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-  }
-
-  .profile-chip .avatar {
-    width: 30px;
-    height: 30px;
-  }
 
   /* ---------- notebook: sort & group ---------- */
 

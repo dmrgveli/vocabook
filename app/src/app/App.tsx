@@ -4,7 +4,7 @@ import { Route, Routes, useLocation } from 'react-router-dom'
 import { BackupPrompt } from '../components/BackupPrompt'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { LookUpDialog } from '../components/LookUpDialog'
-import { MobileAddButton, MobileBar } from '../components/MobileBar'
+import { MobileBar, MobileTabBar } from '../components/MobileBar'
 import { ProfileDialog } from '../components/ProfileDialog'
 import { QuickAddDialog } from '../components/QuickAddDialog'
 import { ReminderPopup } from '../components/ReminderPopup'
@@ -84,7 +84,7 @@ export function App() {
           )}
         </main>
       </div>
-      <MobileAddButton />
+      <MobileTabBar />
       <QuickAddDialog />
       <LookUpDialog />
       <ReminderPopup entries={entries} />

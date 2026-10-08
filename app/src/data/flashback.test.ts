@@ -8,6 +8,9 @@ import {
   pickFlashbackWords,
   practiceCount,
   shouldAskSize,
+  commonSynonym,
+  shortDefinition,
+  simpleMeaning,
   withGap,
   withPracticeRecord,
 } from './flashback'
@@ -73,13 +76,80 @@ describe('cards', () => {
       expect.arrayContaining(['kavramak']),
     )
     expect(card.choices.every((c) => /^[a-zçğıöşü ]+$/i.test(c.label))).toBe(true) // all translations
-    const defined = notebook.map((e, i) => withDefinition({ ...e, translation: undefined }, `To ${e.word} well, number ${i}.`))
+    const defined = notebook.map((e, i) => withDefinition({ ...e, translation: undefined }, `Meaning number ${i}, in short.`))
     const byDefinition = cardFor(defined[0], defined, 'word', seeded(2))
-    expect(byDefinition.choices.every((c) => c.label.startsWith('To … well'))).toBe(true)
+    expect(byDefinition.choices.every((c) => c.label.startsWith('Meaning number'))).toBe(true)
   })
 
   it('falls back to a reveal card when there is nothing to ask', () => {
     expect(cardFor(notebook[5], notebook, 'meaning')).toMatchObject({ kind: 'word', choices: [] })
+  })
+})
+
+describe('simple meanings', () => {
+  const rich = (definitions: string[], synonyms: string[] = []): Entry => ({
+    ...entry('thrive'),
+    enrichment: {
+      fetchedAt: '',
+      definitionsFrom: 'free-dictionary',
+      meanings: [{ partOfSpeech: 'verb', definitions: definitions.map((definition) => ({ definition })) }],
+      synonyms,
+      antonyms: [],
+      collocations: { before: [], after: [] },
+    },
+  })
+  const long = 'To grow or develop well and vigorously, especially in a favourable environment over a long time.'
+
+  it('picks the shortest of the first senses, without labels like (intransitive)', () => {
+    expect(shortDefinition(rich([long, '(intransitive) To prosper; be fortunate.', 'To flourish.']))).toBe('To flourish.')
+  })
+
+  it('prefers the first part of speech and skips definitions that use the word', () => {
+    const knee: Entry = {
+      ...entry('knee'),
+      enrichment: {
+        fetchedAt: '',
+        definitionsFrom: 'free-dictionary',
+        meanings: [
+          { partOfSpeech: 'noun', definitions: [{ definition: long }, { definition: 'The joint in the middle of the leg.' }] },
+          { partOfSpeech: 'verb', definitions: [{ definition: 'To kneel to.' }] },
+        ],
+        synonyms: [],
+        antonyms: [],
+        collocations: { before: [], after: [] },
+      },
+    }
+    expect(shortDefinition(knee)).toBe('The joint in the middle of the leg.')
+  })
+
+  it('falls back to the most common single-word synonym when every definition is long', () => {
+    const e = rich([long], ['get ahead', 'flourish', 'boom', 'prosper'])
+    expect(shortDefinition(e)).toBeUndefined()
+    const k: Record<string, number> = { flourish: 8, boom: 4, prosper: 9 }
+    expect(commonSynonym(e, (w) => k[w])).toBe('≈ boom')
+    expect(cardFor(e, notebook, 'meaning', seeded(1), (w) => k[w]).prompt).toBe('≈ boom')
+  })
+
+  it('cuts the main definition short rather than use an obscure synonym', () => {
+    const e = rich([long], ['stifle', 'genu'])
+    const k: Record<string, number> = { stifle: 8 }
+    expect(simpleMeaning(e, (w) => k[w])).toBe('To grow or develop well and vigorously, especially in a favourable…')
+    expect(simpleMeaning(rich(['To grow well; to do better than expected over many long years.']), () => 1)).toBe('To grow well; to do better than expected over many long years.')
+    expect(simpleMeaning(rich(['To grow and develop very well in every possible way; to do better than expected over many years.']))).toBe(
+      'To grow and develop very well in every possible way',
+    )
+  })
+
+  it('never puts long definitions in the options', () => {
+    const k = () => 3
+    const words = ['grasp', 'nuance', 'linger', 'wholesome', 'candid'].map((w, i) => ({
+      ...rich([long + i], [`syn${i}`]),
+      id: `id-${w}`,
+      word: w,
+    }))
+    const card = cardFor(words[0], words, 'word', seeded(4), k)
+    expect(card.kind).toBe('word')
+    expect(card.choices.every((c) => c.label.startsWith('≈ syn'))).toBe(true)
   })
 })
 

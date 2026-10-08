@@ -1,6 +1,6 @@
-import { Menu, Plus, Search, Settings, X } from 'lucide-react'
+import { BookOpen, History, Menu, Plus, Search, Settings, UserRound, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { useAuth } from '../sync/auth'
 
@@ -18,10 +18,8 @@ export function useIsMobile(): boolean {
   return mobile
 }
 
-/** Top bar on small screens: menu (the sidebar as a drawer) and the app name. Hidden on desktop by CSS. */
+/** Top bar on small screens: menu (filters, as a drawer), the app name and Settings. Hidden on desktop by CSS. */
 export function MobileBar({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => void }) {
-  const auth = useAuth()
-  const { setProfileOpen, setLookUpOpen } = useAppState()
   return (
     <header className="mobile-bar">
       <button className="icon-btn mobile-menu-btn" onClick={onMenu} aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} aria-controls="sidebar">
@@ -32,14 +30,6 @@ export function MobileBar({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () 
         Vocabook
       </Link>
       <span className="mobile-bar-end">
-        <button className="icon-btn mobile-menu-btn" onClick={() => setLookUpOpen(true)} aria-label="Look up a word">
-          <Search size={21} />
-        </button>
-        {(auth.status === 'signed-in' || auth.status === 'expired') && (
-          <button className="profile-chip" onClick={() => setProfileOpen(true)} aria-label="Open your profile">
-            {auth.user.picture ? <img className="avatar" src={auth.user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar" />}
-          </button>
-        )}
         <Link to="/settings" className="icon-btn mobile-menu-btn" aria-label="Settings">
           <Settings size={21} />
         </Link>
@@ -48,12 +38,42 @@ export function MobileBar({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () 
   )
 }
 
-/** Thumb-reachable "add word" button on small screens. Hidden on desktop by CSS. */
-export function MobileAddButton() {
-  const { openQuickAdd } = useAppState()
+/**
+ * Bottom navigation on small screens, within thumb reach: Notebook, Search, a larger Add
+ * in the middle, Flashback and Profile. Hidden on desktop by CSS.
+ */
+export function MobileTabBar() {
+  const auth = useAuth()
+  const { pathname } = useLocation()
+  const { openQuickAdd, quickAddOpen, lookUpOpen, setLookUpOpen, profileOpen, setProfileOpen } = useAppState()
+  const user = auth.status === 'signed-in' || auth.status === 'expired' ? auth.user : undefined
+  const overlay = quickAddOpen || lookUpOpen || profileOpen
+  const notebookActive = !overlay && (pathname === '/' || pathname.startsWith('/word/'))
+
   return (
-    <button className="btn btn-marker mobile-add" onClick={() => openQuickAdd()} aria-label="Add word">
-      <Plus size={22} strokeWidth={2.6} />
-    </button>
+    <nav className="tab-bar" aria-label="Main">
+      <NavLink to="/" className="tab" aria-current={notebookActive ? 'page' : undefined} data-active={notebookActive}>
+        <BookOpen size={21} />
+        <span>Notebook</span>
+      </NavLink>
+      <button className="tab" data-active={lookUpOpen || (!overlay && pathname.startsWith('/look/'))} onClick={() => setLookUpOpen(true)}>
+        <Search size={21} />
+        <span>Search</span>
+      </button>
+      <button className="tab tab-add" onClick={() => openQuickAdd()} aria-label="Add a word">
+        <span className="tab-add-circle">
+          <Plus size={28} strokeWidth={2.6} />
+        </span>
+        <span>Add</span>
+      </button>
+      <NavLink to="/flashback" className="tab" data-active={!overlay && pathname === '/flashback'}>
+        <History size={21} />
+        <span>Flashback</span>
+      </NavLink>
+      <button className="tab" data-active={profileOpen} onClick={() => setProfileOpen(true)} aria-label="Your profile">
+        {user?.picture ? <img className="avatar tab-avatar" src={user.picture} alt="" referrerPolicy="no-referrer" /> : <UserRound size={21} />}
+        <span>Profile</span>
+      </button>
+    </nav>
   )
 }
