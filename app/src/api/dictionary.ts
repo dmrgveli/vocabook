@@ -65,7 +65,7 @@ export function parseDictionary(entries: FDEntry[]): DictionaryResult {
 /** undefined = the dictionary has no entry for this word. Throws when the service is unreachable. */
 export async function lookupWord(word: string): Promise<DictionaryResult | undefined> {
   try {
-    return parseDictionary(await getJson<FDEntry[]>(`${BASE}/${encodeURIComponent(word)}`, { timeoutMs: 7000 }))
+    return parseDictionary(await getJson<FDEntry[]>(`${BASE}/${encodeURIComponent(word)}`, { timeoutMs: 15_000 }))
   } catch (err) {
     if (err instanceof NotFoundError) return undefined
     throw err

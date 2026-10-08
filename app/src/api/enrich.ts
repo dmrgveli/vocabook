@@ -1,53 +1,99 @@
-import { cacheEnrichment, getEntry, listEntries, subscribe } from '../data/db'
+import { cacheEnrichment, getEntry, listEntries, patchEnrichment, subscribe } from '../data/db'
 import { ENRICHMENT_VERSION, now, type Enrichment } from '../data/model'
 import * as datamuse from './datamuse'
 import { lookupWord, type DictionaryResult } from './dictionary'
 
-const settle = <T>(p: Promise<T>) => p.then((value) => ({ ok: true as const, value })).catch(() => ({ ok: false as const }))
+type Settled<T> = { ok: true; value: T } | { ok: false }
+const settle = <T>(p: Promise<T>): Promise<Settled<T>> =>
+  p.then((value) => ({ ok: true as const, value })).catch(() => ({ ok: false as const }))
+
+export interface EnrichmentResult {
+  enrichment: Enrichment
+  frequency?: number
+}
+
+export interface EnrichmentFetch {
+  /** Ready as soon as one source has definitions (or both have answered). */
+  first: Promise<EnrichmentResult>
+  /**
+   * What Free Dictionary adds when it answers after the definitions were already taken
+   * from Datamuse: a recording, the origin, IPA. Never changes the definitions, so the
+   * page does not reshuffle under the reader. Undefined when there is nothing to add.
+   */
+  late: Promise<Partial<Enrichment> | undefined>
+}
 
 /**
- * Fetches everything the word page shows, from both APIs in parallel.
- * Free Dictionary is the main source for definitions; Datamuse fills in when it is down.
- * Throws only when nothing at all could be fetched.
+ * Fetches everything the word page shows. Both dictionaries are asked at once and the
+ * first one with definitions wins (Datamuse usually answers in well under a second,
+ * Free Dictionary can take ten). `first` rejects only when nothing at all could be fetched.
  */
-export async function fetchEnrichment(word: string): Promise<{ enrichment: Enrichment; frequency?: number }> {
-  const [dict, info, coll, rel] = await Promise.all([
-    settle(lookupWord(word)),
-    settle(datamuse.wordInfo(word)),
-    settle(datamuse.collocations(word)),
-    settle(datamuse.synonyms(word)),
-  ])
-  if (!dict.ok && !info.ok) throw new Error('Dictionary services are unreachable')
+export function fetchEnrichment(word: string): EnrichmentFetch {
+  let dictDone: Settled<DictionaryResult | undefined> | undefined
+  const dictP = settle(lookupWord(word)).then((d) => (dictDone = d))
+  const infoP = settle(datamuse.wordInfo(word))
+  const collP = settle(datamuse.collocations(word))
+  const relP = settle(datamuse.synonyms(word))
 
-  const d: DictionaryResult | undefined = dict.ok ? dict.value : undefined
-  const meanings = d?.meanings.length ? d.meanings : info.ok ? info.value.meanings : []
-  const merge = (a: string[] = [], b: string[] = []) => [...new Set([...a, ...b])].filter((w) => w !== word)
+  const winner = new Promise<Enrichment['definitionsFrom']>((resolve) => {
+    let waiting = 2
+    const settled = (from: 'free-dictionary' | 'datamuse', hasMeanings: boolean) =>
+      hasMeanings ? resolve(from) : --waiting === 0 && resolve('none')
+    void dictP.then((d) => settled('free-dictionary', Boolean(d.ok && d.value?.meanings.length)))
+    void infoP.then((i) => settled('datamuse', Boolean(i.ok && i.value.meanings.length)))
+  })
 
-  return {
-    frequency: info.ok ? info.value.frequency : undefined,
-    enrichment: {
-      fetchedAt: now(),
-      definitionsFrom: d?.meanings.length ? 'free-dictionary' : meanings.length ? 'datamuse' : 'none',
-      phonetic: d?.phonetic ?? (info.ok ? info.value.ipa : undefined),
-      audioUrl: d?.audioUrl,
-      origin: d?.origin,
-      meanings,
-      synonyms: merge(d?.synonyms, rel.ok ? rel.value.synonyms : []).slice(0, 14),
-      antonyms: merge(d?.antonyms, rel.ok ? rel.value.antonyms : []).slice(0, 8),
-      collocations: coll.ok ? coll.value : { before: [], after: [] },
-      version: ENRICHMENT_VERSION,
-    },
-  }
+  const first = (async (): Promise<EnrichmentResult> => {
+    const from = await winner
+    const [info, coll, rel] = await Promise.all([infoP, collP, relP])
+    if (from === 'free-dictionary') await dictP
+    // Free Dictionary may have answered by now even if it lost; its extras are welcome.
+    const d = dictDone?.ok ? dictDone.value : undefined
+    if (from === 'none' && !dictDone?.ok && !info.ok) throw new Error('Dictionary services are unreachable')
+
+    const meanings = from === 'free-dictionary' ? d!.meanings : from === 'datamuse' && info.ok ? info.value.meanings : []
+    const merge = (a: string[] = [], b: string[] = []) => [...new Set([...a, ...b])].filter((w) => w !== word)
+    return {
+      frequency: info.ok ? info.value.frequency : undefined,
+      enrichment: {
+        fetchedAt: now(),
+        definitionsFrom: from,
+        phonetic: d?.phonetic ?? (info.ok ? info.value.ipa : undefined),
+        audioUrl: d?.audioUrl,
+        origin: d?.origin,
+        meanings,
+        synonyms: merge(d?.synonyms, rel.ok ? rel.value.synonyms : []).slice(0, 14),
+        antonyms: merge(d?.antonyms, rel.ok ? rel.value.antonyms : []).slice(0, 8),
+        collocations: coll.ok ? coll.value : { before: [], after: [] },
+        version: ENRICHMENT_VERSION,
+      },
+    }
+  })()
+
+  const late = first
+    .then(async ({ enrichment }) => {
+      if (dictDone) return undefined // already part of `first`
+      const d = await dictP
+      if (!d.ok || !d.value) return undefined
+      const patch: Partial<Enrichment> = {}
+      if (d.value.audioUrl) patch.audioUrl = d.value.audioUrl
+      if (d.value.origin) patch.origin = d.value.origin
+      if (!enrichment.phonetic && d.value.phonetic) patch.phonetic = d.value.phonetic
+      return Object.keys(patch).length ? patch : undefined
+    })
+    .catch(() => undefined)
+
+  return { first, late }
 }
 
 /** Look-ups of words not in the notebook, kept for the session (and reused if the word is then added). */
-const lookups = new Map<string, ReturnType<typeof fetchEnrichment>>()
+const lookups = new Map<string, EnrichmentFetch>()
 
-export function lookUp(word: string): ReturnType<typeof fetchEnrichment> {
+export function lookUp(word: string): EnrichmentFetch {
   let pending = lookups.get(word)
   if (!pending) {
     pending = fetchEnrichment(word)
-    pending.catch(() => lookups.delete(word))
+    pending.first.catch(() => lookups.delete(word))
     lookups.set(word, pending)
   }
   return pending
@@ -55,16 +101,21 @@ export function lookUp(word: string): ReturnType<typeof fetchEnrichment> {
 
 const inFlight = new Map<string, Promise<void>>()
 
-/** Fetches dictionary data and copies it into the entry. Concurrent calls for the same entry share one request. */
+/**
+ * Fetches dictionary data and copies it into the entry; resolves once the definitions
+ * are stored. Late extras are added afterwards. Concurrent calls share one request.
+ */
 export function enrichEntry(id: string): Promise<void> {
   let pending = inFlight.get(id)
   if (!pending) {
     pending = (async () => {
       const entry = await getEntry(id)
       if (!entry) return
-      const { enrichment, frequency } = await (lookups.get(entry.word) ?? fetchEnrichment(entry.word))
+      const fetch = lookups.get(entry.word) ?? fetchEnrichment(entry.word)
       lookups.delete(entry.word)
+      const { enrichment, frequency } = await fetch.first
       await cacheEnrichment(id, enrichment, frequency)
+      void fetch.late.then((patch) => patch && patchEnrichment(id, patch))
     })().finally(() => inFlight.delete(id))
     inFlight.set(id, pending)
   }

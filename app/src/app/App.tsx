@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
+import { BackupPrompt } from '../components/BackupPrompt'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { LookUpDialog } from '../components/LookUpDialog'
 import { MobileAddButton, MobileBar } from '../components/MobileBar'
@@ -13,7 +14,9 @@ import { WordPeek } from '../components/WordPeek'
 import { useEntries } from '../hooks'
 import { Notebook } from '../screens/Notebook'
 import { Settings } from '../screens/Settings'
-import { LookUpPage, WordPage } from '../screens/WordPage'
+import { Flashback } from '../screens/Flashback'
+import { LookUpPage } from '../screens/LookUpPage'
+import { WordPage } from '../screens/WordPage'
 import { useAppState } from './state'
 
 export function App() {
@@ -71,6 +74,7 @@ export function App() {
                   <Routes location={location}>
                     <Route path="/word/:param" element={<WordPage />} />
                     <Route path="/look/:param" element={<LookUpPage />} />
+                    <Route path="/flashback" element={<Flashback entries={entries} />} />
                     <Route path="/settings/:section?" element={<Settings entries={entries} />} />
                     <Route path="*" element={<Notebook entries={entries} />} />
                   </Routes>
@@ -84,6 +88,7 @@ export function App() {
       <QuickAddDialog />
       <LookUpDialog />
       <ReminderPopup entries={entries} />
+      <BackupPrompt entries={entries} />
       <WordPeek />
       <ProfileDialog entries={entries ?? []} />
       <Toaster />

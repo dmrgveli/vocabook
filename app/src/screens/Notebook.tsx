@@ -1,10 +1,11 @@
 import { motion } from 'motion/react'
-import { ArrowRight, ArrowUpDown, BookOpenText, Plus, Rows3, Search, X } from 'lucide-react'
+import { ArrowRight, ArrowUpDown, BookOpenText, History, Plus, Rows3, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { MOD_KEY } from '../components/Sidebar'
 import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
+import { FLASHBACK_MIN_WORDS, FLASHBACK_SIZE } from '../data/flashback'
 import { bandOfWord, K_BANDS, levelOf, MAX_LEVEL, useLevelsReady } from '../data/levels'
 import { alive, MASTERY_LABELS, normalizeWord, type Entry, type Mastery } from '../data/model'
 import { lookPath, wordPath } from '../data/paths'
@@ -128,6 +129,11 @@ export function Notebook({ entries }: { entries: Entry[] }) {
           {entries.length} {entries.length === 1 ? 'word' : 'words'}
           {thisWeek > 0 && <> · {thisWeek} this week</>}
         </p>
+        {entries.length >= FLASHBACK_MIN_WORDS && (
+          <Link to="/flashback" className="btn flashback-cta">
+            <History size={16} /> Flashback <span className="faint">· {Math.min(entries.length, FLASHBACK_SIZE)} words</span>
+          </Link>
+        )}
       </header>
 
       <div className="toolbar">

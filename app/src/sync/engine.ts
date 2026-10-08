@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react'
-import { applySyncedEntries, listAllEntries, replaceAllEntries, subscribe } from '../data/db'
+import { applySyncedEntries, listAllEntries, purgeEntries, replaceAllEntries, subscribe } from '../data/db'
 import type { Entry } from '../data/model'
 import { getAuthState, getAuthToken, invalidateSession, subscribeAuth, SYNC_BASE, syncConfigured } from './auth'
-import { changedLocally, mergeNotebooks, stableStringify, wireNotebook, type SyncedNotebook } from './merge'
+import { changedLocally, mergeNotebooks, pruneTombstones, stableStringify, wireNotebook, type SyncedNotebook } from './merge'
 
 // Background sync between IndexedDB and the Worker. The device stays the source of
 // truth for the user: everything is written locally first, then merged with the cloud
@@ -120,7 +120,8 @@ async function runSync(): Promise<void> {
         })
       }
 
-      const merged = mergeNotebooks(local, remoteEntries)
+      const { entries: merged, purged } = pruneTombstones(mergeNotebooks(local, remoteEntries), Date.now())
+      await purgeEntries(purged)
       await applySyncedEntries(changedLocally(local, merged))
 
       const wire = wireNotebook(merged)

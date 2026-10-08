@@ -57,6 +57,14 @@ export async function applySyncedEntries(entries: Entry[]): Promise<void> {
   notify('sync')
 }
 
+/** Removes records for good: tombstones old enough that every device has seen them. */
+export async function purgeEntries(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const tx = (await db()).transaction('entries', 'readwrite')
+  await Promise.all([...ids.map((id) => tx.store.delete(id)), tx.done])
+  notify('sync')
+}
+
 /** Replaces the whole local notebook (used when switching to another account's notebook). */
 export async function replaceAllEntries(entries: Entry[]): Promise<void> {
   const tx = (await db()).transaction('entries', 'readwrite')
@@ -98,6 +106,14 @@ export async function cacheEnrichment(id: string, enrichment: Enrichment, freque
   const entry = await getEntry(id)
   if (!entry) return
   await (await db()).put('entries', { ...entry, enrichment, frequency: entry.frequency ?? frequency })
+  notify('cache')
+}
+
+/** Adds late dictionary extras (recording, origin) to an entry's cached data. Same rules as cacheEnrichment. */
+export async function patchEnrichment(id: string, patch: Partial<Enrichment>): Promise<void> {
+  const entry = await getEntry(id)
+  if (!entry?.enrichment) return
+  await (await db()).put('entries', { ...entry, enrichment: { ...entry.enrichment, ...patch } })
   notify('cache')
 }
 

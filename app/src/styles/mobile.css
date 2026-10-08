@@ -480,6 +480,51 @@
     height: 40px;
   }
 
+  /* ---------- flashback ---------- */
+
+  .page-header:has(.flashback-cta) > p {
+    margin-left: 0;
+  }
+
+  .flashback-cta {
+    align-self: flex-start;
+    margin-top: 10px;
+  }
+
+  .flashback-head {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .flash-card {
+    padding: 20px 16px;
+  }
+
+  .flash-prompt {
+    font-size: 24px;
+  }
+
+  .flash-word {
+    font-size: 42px;
+  }
+
+  .flash-actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .flash-actions > .faint {
+    flex-basis: 100%;
+  }
+
+  .flash-progress li {
+    width: 12px;
+  }
+
+  .flash-progress li[data-state='now'] {
+    width: 22px;
+  }
+
   /* ---------- profile ---------- */
 
   .profile {

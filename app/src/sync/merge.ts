@@ -9,6 +9,10 @@ import { MASTERY_LEVELS, now, type Entry } from '../data/model'
 // - The same word added on two devices before they synced ends up as one entry:
 //   the oldest keeps its id, the others fold into it and become tombstones.
 // - Dictionary data (`enrichment`) is a per-device cache: never sent, never overwritten.
+// - Tombstones are dropped once they are older than TOMBSTONE_DAYS (pruneTombstones):
+//   by then every device that syncs regularly has seen the deletion. A device that was
+//   offline for longer may bring such a word back; that is the price of not keeping
+//   deletions forever, and it never loses a word.
 
 export interface SyncedNotebook {
   version: 1
@@ -84,6 +88,30 @@ export function mergeNotebooks(local: Entry[], remote: Entry[]): Entry[] {
     byId.set(r.id, l ? mergeEntry(l, r) : r)
   }
   return dedupeWords([...byId.values()])
+}
+
+/** How long a deletion is kept so other devices can learn about it. */
+export const TOMBSTONE_DAYS = 60
+
+/**
+ * Removes deleted entries, encounters and notes whose deletion is older than the cutoff.
+ * Deterministic (it depends only on deletedAt), so every device prunes the same records.
+ */
+export function pruneTombstones(entries: Entry[], nowMs: number, days = TOMBSTONE_DAYS): { entries: Entry[]; purged: string[] } {
+  const cutoff = new Date(nowMs - days * 86_400_000).toISOString()
+  const expired = (x: { deletedAt?: string }) => Boolean(x.deletedAt && x.deletedAt < cutoff)
+  const purged: string[] = []
+  const kept: Entry[] = []
+  for (const e of entries) {
+    if (expired(e)) {
+      purged.push(e.id)
+      continue
+    }
+    const encounters = e.encounters.filter((x) => !expired(x))
+    const notes = e.notes.filter((x) => !expired(x))
+    kept.push(encounters.length === e.encounters.length && notes.length === e.notes.length ? e : { ...e, encounters, notes })
+  }
+  return { entries: kept, purged }
 }
 
 /** What goes to the cloud: no dictionary cache; deleted entries shrink to a tombstone. */

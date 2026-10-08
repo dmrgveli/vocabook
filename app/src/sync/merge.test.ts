@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEncounter, createEntry, createNote, type Entry } from '../data/model'
-import { changedLocally, mergeNotebooks, stableStringify, toWire, wireNotebook } from './merge'
+import { changedLocally, mergeNotebooks, pruneTombstones, stableStringify, toWire, wireNotebook } from './merge'
 
 const at = (iso: string) => `2026-10-0${iso}T00:00:00.000Z`
 
@@ -79,5 +79,33 @@ describe('wire format', () => {
     const b = entry('b')
     const merged = mergeNotebooks([a, b], [{ ...b, updatedAt: at('3'), translation: 'new' }])
     expect(changedLocally([a, b], merged).map((e) => e.word)).toEqual(['b'])
+  })
+})
+
+describe('pruneTombstones', () => {
+  const day = 86_400_000
+  const nowMs = Date.parse('2026-12-31T00:00:00.000Z')
+  const ago = (days: number) => new Date(nowMs - days * day).toISOString()
+
+  it('drops deletions older than the cutoff and keeps recent ones', () => {
+    const old = entry('grasp', { deletedAt: ago(61), updatedAt: ago(61) })
+    const recent = entry('thrive', { deletedAt: ago(10), updatedAt: ago(10) })
+    const alive = entry('nuance')
+    const { entries, purged } = pruneTombstones([old, recent, alive], nowMs)
+    expect(purged).toEqual([old.id])
+    expect(entries.map((e) => e.word)).toEqual(['thrive', 'nuance'])
+  })
+
+  it('drops old deleted encounters and notes inside living entries, untouched entries stay the same object', () => {
+    const e = entry('grasp')
+    const goneEnc = { ...createEncounter({ source: 'Old' }), deletedAt: ago(90) }
+    const goneNote = { ...createNote('old'), deletedAt: ago(90) }
+    const keptNote = { ...createNote('fresh'), deletedAt: ago(5) }
+    const withTombs = { ...e, encounters: [...e.encounters, goneEnc], notes: [goneNote, keptNote] }
+    const untouched = entry('thrive')
+    const { entries } = pruneTombstones([withTombs, untouched], nowMs)
+    expect(entries[0].encounters.map((x) => x.source)).toEqual(['Book'])
+    expect(entries[0].notes.map((n) => n.text)).toEqual(['fresh'])
+    expect(entries[1]).toBe(untouched)
   })
 })

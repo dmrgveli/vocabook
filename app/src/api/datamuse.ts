@@ -131,13 +131,28 @@ export function peek(clicked: string): Promise<Peek> {
   return pending
 }
 
-async function related(rel: string, word: string, keep: (w: string) => boolean, max: number): Promise<Collocation[]> {
-  const words = await getJson<DatamuseWord[]>(`${BASE}/words?${rel}=${encodeURIComponent(word)}&max=60`)
+async function related(
+  rel: string,
+  word: string,
+  keep: (w: string) => boolean,
+  max: number,
+  minFrequency?: number,
+): Promise<Collocation[]> {
+  const md = minFrequency === undefined ? '' : '&md=f'
+  const words = await getJson<DatamuseWord[]>(`${BASE}/words?${rel}=${encodeURIComponent(word)}&max=60${md}`)
   return words
+    .filter((w) => minFrequency === undefined || (parseFrequency(w) ?? 0) >= minFrequency)
     .map((w) => ({ word: w.word.toLowerCase(), score: w.score }))
     .filter((c) => isWord(c.word) && c.word !== word && keep(c.word))
     .slice(0, max)
 }
+
+/**
+ * Datamuse's thesaurus has the odd misspelt entry ("fligh high" for thrive) and very
+ * obscure words ("riant", "euphoriant" for happy). Those never show up in real text,
+ * so anything rarer than this (occurrences per million words) is left out.
+ */
+export const MIN_RELATED_FREQUENCY = 0.05
 
 // Words that are frequent next to almost anything and say nothing about this word
 // ("the decision", "will thrive", "thrive and"). Prepositions are listed separately:
@@ -192,8 +207,8 @@ export async function collocations(word: string): Promise<Collocations> {
 
 export async function synonyms(word: string): Promise<{ synonyms: string[]; antonyms: string[] }> {
   const [syn, ant] = await Promise.all([
-    related('rel_syn', word, () => true, 8),
-    related('rel_ant', word, () => true, 6),
+    related('rel_syn', word, () => true, 8, MIN_RELATED_FREQUENCY),
+    related('rel_ant', word, () => true, 6, MIN_RELATED_FREQUENCY),
   ])
   return { synonyms: syn.map((c) => c.word), antonyms: ant.map((c) => c.word) }
 }

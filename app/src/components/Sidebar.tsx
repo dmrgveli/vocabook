@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { BookOpen, Plus, Search } from 'lucide-react'
+import { BookOpen, History, Plus, Search } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
@@ -62,6 +62,7 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
 
       <nav className="nav">
         <NavItem to="/" icon={<BookOpen size={17} />} label="Notebook" count={entries.length} onClick={onNavigate} />
+        <NavItem to="/flashback" icon={<History size={17} />} label="Flashback" onClick={onNavigate} />
         <button
           className="nav-item nav-btn"
           onClick={() => {

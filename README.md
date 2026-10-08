@@ -30,6 +30,7 @@ devices with a Google account.
 - **Look up any word** without adding it: from the sidebar, the notebook search or the phone's top bar, with the same definitions, word map and clips as a word page.
 - **Look-ups everywhere:** click any word in a definition for a small card with its level, pronunciation and meaning, and add it in one step.
 - **Notebook views:** search, filter by level, mastery or source, sort and group your words.
+- **Flashback:** a short round of recall with your own words: fill the gap in the sentence where you met a word, find the word from your translation, or say what a word means. Words you missed come back once; the round ends with one word in a sentence of your own.
 - **Gentle reminders:** once you have 10 words, opening the app may suggest a few you haven't looked at in a while. Easy to dismiss or turn off.
 - **Profile:** streaks, a six-month activity map and achievements, all derived from your notebook.
 - **Sync:** sign in with Google to keep the notebook in sync. Local-first: everything is saved in your browser first.
