@@ -70,7 +70,7 @@ export const SHORT_MEANING = 70
 const LABELS = /^((\s*\([^)]*\)\s*)|((US|UK|British|American|Australian|Canadian|Irish|Scottish|informal|formal|slang|dated|chiefly [a-z ,]+)[:,]?\s+))+/i
 
 /** "(intransitive) To grow vigorously." → "To grow vigorously." */
-const cleanDefinition = (d: string) => d.replace(LABELS, '').trim()
+export const cleanDefinition = (d: string) => d.replace(LABELS, '').trim()
 
 /**
  * Definitions that describe the word instead of its meaning ("Alternative form of …",

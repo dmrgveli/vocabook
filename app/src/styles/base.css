@@ -263,8 +263,8 @@ button.chip:hover {
 .tone-rare { --fill: var(--rare); --tone: var(--rare-ink); }
 .tone-unknown { --fill: var(--unknown); --tone: var(--unknown-ink); }
 
-/* Calm word colours: cards and list rows in one colour; their small K badges keep theirs */
-:root[data-word-colors='calm'] :is(.word-card, .word-row) {
+/* Calm word colours: cards, notebook lines and previews in one colour; their small K badges keep theirs */
+:root[data-word-colors='calm'] :is(.word-card, .line, .word-preview) {
   --fill: var(--calm);
   --tone: var(--calm-ink);
 }

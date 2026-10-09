@@ -2,11 +2,12 @@ import { motion } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MASTERY_LABELS, metEncounters, type Entry } from '../data/model'
-import { entrySource } from '../data/notebook'
+import { entrySource, lineSentence, topPhrases } from '../data/notebook'
 import { KBadge, MasteryMeter, toneClass } from './ui'
 
-// Desktop only: resting the pointer on a word in the compact list opens a card with its
-// details next to the row. It is a preview, not a control: the row itself opens the page.
+// Desktop only: resting the pointer on a word in the one-line-per-word notebook opens a card
+// with its details next to the word. It is a preview, not a control: the line itself opens
+// the page. A row can mark the element to sit next to with data-preview-anchor.
 
 const HOVER_QUERY = '(hover: hover) and (min-width: 900px)'
 const OPEN_DELAY_MS = 320
@@ -37,7 +38,7 @@ export function useWordPreview() {
   const handlers = (entry: Entry) => ({
     onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
       if (!matchMedia(HOVER_QUERY).matches) return
-      const el = e.currentTarget
+      const el = e.currentTarget.querySelector('[data-preview-anchor]') ?? e.currentTarget
       clearTimeout(timer.current)
       timer.current = setTimeout(() => setTarget({ entry, rect: el.getBoundingClientRect() }), OPEN_DELAY_MS)
     },
@@ -70,6 +71,8 @@ function PreviewCard({ target: { entry, rect } }: { target: PreviewTarget }) {
   const definitions = (e?.meanings ?? []).slice(0, 2)
   const encounters = metEncounters(entry).length
   const source = entrySource(entry)
+  const phrases = topPhrases(entry)
+  const sentence = lineSentence(entry)
 
   return (
     <motion.div
@@ -95,7 +98,20 @@ function PreviewCard({ target: { entry, rect } }: { target: PreviewTarget }) {
         </p>
       ))}
       {!e && <p className="faint small">Dictionary details will appear once they are fetched.</p>}
-      {entry.ownSentence && <blockquote className="word-preview-sentence word-font">“{entry.ownSentence}”</blockquote>}
+      {phrases.length > 0 && (
+        <p className="line-phrases word-preview-phrases" lang="en">
+          {phrases.map((p) => (
+            <span key={p} className="line-phrase word-font">
+              {p}
+            </span>
+          ))}
+        </p>
+      )}
+      {sentence && (
+        <blockquote className={`word-preview-sentence word-font${sentence.mine ? '' : ' faint'}`} lang="en">
+          “{sentence.text}”
+        </blockquote>
+      )}
       <div className="word-preview-foot">
         <span>
           {source}

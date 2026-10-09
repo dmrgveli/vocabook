@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { ArrowRight, ArrowUpDown, BookOpenText, History, LayoutGrid, List, Plus, Rows3, Search, X } from 'lucide-react'
+import { ArrowRight, ArrowUpDown, BookOpenText, History, LayoutGrid, List, NotebookText, Plus, Rows3, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppState } from '../app/state'
@@ -7,6 +7,7 @@ import { MOD_KEY } from '../components/Sidebar'
 import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
 import { GuestWordsOffer } from '../components/GuestWords'
 import { useWordPreview, WordPreview } from '../components/WordPreview'
+import { RuledPage } from './notebook/RuledPage'
 import { FLASHBACK_MIN_WORDS } from '../data/flashback'
 import { bandOfWord, K_BANDS, levelOf, MAX_LEVEL, useLevelsReady } from '../data/levels'
 import { metEncounters, MASTERY_LABELS, normalizeWord, type Entry, type Mastery } from '../data/model'
@@ -27,6 +28,9 @@ import {
 
 const dayFormat = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 const yearFormat = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+const weekdayFormat = new Intl.DateTimeFormat('en-US', { weekday: 'long' })
+const shortDayFormat = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+const shortYearFormat = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
 function formatDay(day: string) {
   const date = new Date(`${day}T12:00:00`)
@@ -35,6 +39,16 @@ function formatDay(day: string) {
   if (day === localDay(new Date().toISOString())) return 'Today'
   if (day === localDay(yesterday.toISOString())) return 'Yesterday'
   return date.getFullYear() === new Date().getFullYear() ? dayFormat.format(date) : yearFormat.format(date)
+}
+
+/** The margin of the ruled page is narrow: "Thursday / Oct 8", "Today / Oct 9". */
+function marginLabel(group: GroupKey, key: string): { title: string; sub?: string } {
+  if (group !== 'day') return { title: groupTitle(group, key) }
+  const date = new Date(`${key}T12:00:00`)
+  const title = formatDay(key)
+  const thisYear = date.getFullYear() === new Date().getFullYear()
+  const sub = (thisYear ? shortDayFormat : shortYearFormat).format(date)
+  return title === 'Today' || title === 'Yesterday' ? { title, sub } : { title: weekdayFormat.format(date), sub }
 }
 
 function groupTitle(group: GroupKey, key: string): string {
@@ -58,15 +72,24 @@ const numericLevel = (word: string) => {
   return l === undefined ? undefined : l.level === 'off' ? MAX_LEVEL + 1 : l.level
 }
 
+type Layout = 'page' | 'lines' | 'cards'
+
 interface NotebookView {
   sort: SortKey
   group: GroupKey
-  /** cards: the colourful cards; compact: one slim line per word, for long notebooks */
-  layout: 'cards' | 'compact'
+  /** page: the ruled notebook page, everything written out; lines: one ruled line per word; cards: the colourful cards */
+  layout: Layout
 }
 
 const VIEW_KEY = 'notebook-view'
-const DEFAULT_VIEW: NotebookView = { sort: 'newest', group: 'day', layout: 'cards' }
+const DEFAULT_VIEW: NotebookView = { sort: 'newest', group: 'day', layout: 'page' }
+const LAYOUTS: Layout[] = ['page', 'lines', 'cards']
+
+/** Before the ruled page (9 Oct 2026) the layouts were cards / compact: everyone starts on the page once. */
+function savedLayout(saved: { layout?: string; layoutVersion?: number }): Layout {
+  if (saved.layoutVersion === 2 && LAYOUTS.includes(saved.layout as Layout)) return saved.layout as Layout
+  return saved.layout === 'compact' ? 'lines' : 'page'
+}
 
 /** Sort and grouping, remembered on this device. */
 function useNotebookView(): [NotebookView, (v: NotebookView) => void] {
@@ -74,7 +97,7 @@ function useNotebookView(): [NotebookView, (v: NotebookView) => void] {
     try {
       const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null')
       const valid = saved && SORTS.some((s) => s.id === saved.sort) && GROUPS.some((g) => g.id === saved.group)
-      return valid ? { ...saved, layout: saved.layout === 'compact' ? 'compact' : 'cards' } : DEFAULT_VIEW
+      return valid ? { sort: saved.sort, group: saved.group, layout: savedLayout(saved) } : DEFAULT_VIEW
     } catch {
       return DEFAULT_VIEW
     }
@@ -82,7 +105,7 @@ function useNotebookView(): [NotebookView, (v: NotebookView) => void] {
   const setView = (v: NotebookView) => {
     setViewState(v)
     try {
-      localStorage.setItem(VIEW_KEY, JSON.stringify(v))
+      localStorage.setItem(VIEW_KEY, JSON.stringify({ ...v, layoutVersion: 2 }))
     } catch {
       // storage unavailable: the choice lasts until the page closes
     }
@@ -157,11 +180,19 @@ export function Notebook({ entries }: { entries: Entry[] }) {
           <kbd>/</kbd>
         </label>
         <span className="layout-toggle" role="group" aria-label="Layout">
-          <button aria-pressed={view.layout === 'cards'} onClick={() => setView({ ...view, layout: 'cards' })} title="Cards">
-            <LayoutGrid size={16} />
+          <button aria-pressed={view.layout === 'page'} onClick={() => setView({ ...view, layout: 'page' })} title="Notebook page" aria-label="Notebook page">
+            <NotebookText size={16} />
           </button>
-          <button aria-pressed={view.layout === 'compact'} onClick={() => setView({ ...view, layout: 'compact' })} title="Compact list">
+          <button
+            aria-pressed={view.layout === 'lines'}
+            onClick={() => setView({ ...view, layout: 'lines' })}
+            title="One line per word"
+            aria-label="One line per word"
+          >
             <List size={16} />
+          </button>
+          <button aria-pressed={view.layout === 'cards'} onClick={() => setView({ ...view, layout: 'cards' })} title="Cards" aria-label="Cards">
+            <LayoutGrid size={16} />
           </button>
         </span>
 
@@ -213,6 +244,13 @@ export function Notebook({ entries }: { entries: Entry[] }) {
 
       {pages.length === 0 ? (
         <p className="muted no-results">No words in your notebook match.</p>
+      ) : view.layout !== 'cards' ? (
+        <RuledPage
+          groups={pages}
+          detail={view.layout === 'page' ? 'full' : 'brief'}
+          margin={view.group === 'none' ? undefined : (key) => marginLabel(view.group, key)}
+          preview={preview}
+        />
       ) : (
         pages.map(({ key, entries }, pageIndex) => (
           <section key={`${view.group}:${key}`} className="day">
@@ -221,32 +259,22 @@ export function Notebook({ entries }: { entries: Entry[] }) {
                 {groupTitle(view.group, key)} <span className="faint">{entries.length}</span>
               </h2>
             )}
-            {view.layout === 'compact' ? (
-              <ul className="word-list">
-                {entries.map((e) => (
-                  <li key={e.id} {...preview.handlers(e)}>
-                    <CompactWord entry={e} />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="card-grid">
-                {entries.map((e, i) => (
-                  <motion.div
-                    key={e.id}
-                    initial={{ opacity: 0, y: 10, rotate: i % 2 ? 1.2 : -1.2 }}
-                    animate={{ opacity: 1, y: 0, rotate: 0 }}
-                    transition={{ type: 'spring', stiffness: 380, damping: 26, delay: Math.min(pageIndex * 0.04 + i * 0.03, 0.35) }}
-                  >
-                    <WordCard entry={e} />
-                  </motion.div>
-                ))}
-              </div>
-            )}
+            <div className="card-grid">
+              {entries.map((e, i) => (
+                <motion.div
+                  key={e.id}
+                  initial={{ opacity: 0, y: 10, rotate: i % 2 ? 1.2 : -1.2 }}
+                  animate={{ opacity: 1, y: 0, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 26, delay: Math.min(pageIndex * 0.04 + i * 0.03, 0.35) }}
+                >
+                  <WordCard entry={e} />
+                </motion.div>
+              ))}
+            </div>
           </section>
         ))
       )}
-      {view.layout === 'compact' && <WordPreview target={preview.target} />}
+      {view.layout === 'lines' && <WordPreview target={preview.target} />}
     </div>
   )
 }
@@ -266,21 +294,6 @@ function LookUpHint({ query, entries }: { query: string; entries: Entry[] }) {
         <ArrowRight size={16} className="lookup-hint-arrow" />
       </Link>
     </motion.div>
-  )
-}
-
-/** One slim line per word: the K-band colour as a stripe, the word, its meaning, the level. */
-function CompactWord({ entry }: { entry: Entry }) {
-  const meaning = entry.translation ?? entry.enrichment?.meanings[0]?.definitions[0]?.definition
-  return (
-    <article className={`word-row ${toneClass(entry.word)}`}>
-      <Link to={wordPath(entry.word)} className="word-font word-row-word card-link" lang="en">
-        {entry.word}
-      </Link>
-      {meaning && <span className="word-row-meaning truncate">{meaning}</span>}
-      <MasteryMeter level={entry.mastery} />
-      <KBadge word={entry.word} plain />
-    </article>
   )
 }
 

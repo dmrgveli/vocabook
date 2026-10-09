@@ -144,3 +144,45 @@ export function groupEntries(sorted: Entry[], group: GroupKey, bandOf: (word: st
 }
 
 const BAND_ORDER = ['k1', 'k3', 'k5', 'k10', 'k20', 'rare', 'unknown']
+
+/* ---------- what a notebook line shows ---------- */
+
+/**
+ * The phrases a word is most used in, for its line in the notebook: one from each kind of
+ * corpus collocation first ("make a decision", "final decision"), else the classic
+ * neighbours by frequency ("thrive on", "plants thrive").
+ */
+export function topPhrases(entry: Entry, max = 3): string[] {
+  const out: string[] = []
+  const groups = entry.enrichment?.corpus?.groups ?? []
+  for (let round = 0; round < 3 && out.length < max; round++) {
+    for (const g of groups) {
+      const phrase = g.items[round]?.phrase
+      if (phrase && out.length < max && !out.includes(phrase)) out.push(phrase)
+    }
+  }
+  if (out.length) return out
+  const c = entry.enrichment?.collocations
+  if (!c) return []
+  return [
+    ...c.before.map((x) => ({ phrase: `${x.word} ${entry.word}`, score: x.score ?? 0 })),
+    ...c.after.map((x) => ({ phrase: `${entry.word} ${x.word}`, score: x.score ?? 0 })),
+  ]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, max)
+    .map((x) => x.phrase)
+}
+
+/** One sentence with the word: your own first, then where you met it, then a real or dictionary example. */
+export function lineSentence(entry: Entry): { text: string; mine: boolean } | undefined {
+  if (entry.ownSentence?.trim()) return { text: entry.ownSentence.trim(), mine: true }
+  const met = firstEncounter(entry)?.sentence?.trim() || metEncounters(entry).find((e) => e.sentence?.trim())?.sentence?.trim()
+  if (met) return { text: met, mine: true }
+  const real = entry.enrichment?.corpus?.examples[0]
+  if (real) return { text: `${real.before} ${real.word}${/^[.,;:!?'’)]/.test(real.after) ? '' : ' '}${real.after}`.trim(), mine: false }
+  for (const m of entry.enrichment?.meanings ?? []) {
+    const example = m.definitions.find((d) => d.example)?.example
+    if (example) return { text: example, mine: false }
+  }
+  return undefined
+}

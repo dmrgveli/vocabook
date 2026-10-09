@@ -1494,70 +1494,289 @@ p:hover .hover-only,
   color: var(--marker-ink);
 }
 
-.word-list {
+/* ---------- notebook: the ruled page ---------- */
+
+/* One continuous sheet: a red margin with each group's day (or source…) and ruled lines.
+   Groups don't break the sheet, so it reads like one notebook you keep scrolling. */
+.sheet {
+  --margin-w: 112px;
+  --margin-rule: color-mix(in srgb, var(--accent) 50%, transparent);
+  --rule: var(--line-soft);
+  margin-top: 18px;
+  padding: 6px 8px 6px 0;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-l);
+  background: var(--card);
+  box-shadow: var(--pop);
+  container: sheet / inline-size;
+}
+
+.sheet-group {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 6px 10px;
+  grid-template-columns: var(--margin-w) minmax(0, 1fr);
+}
+
+.sheet-group + .sheet-group {
+  border-top: 1.5px solid color-mix(in srgb, var(--line) 22%, transparent);
+}
+
+.sheet-margin {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 1px;
+  margin: 0;
+  padding: 14px 12px 14px 16px;
+  border-right: 1.5px solid var(--margin-rule);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.sheet-margin > * {
+  position: sticky;
+  top: 72px; /* under the sticky toolbar */
+}
+
+.sheet-margin-sub {
+  top: 90px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.sheet-margin-count {
+  top: 108px;
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-lines {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.word-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 46px;
-  padding: 6px 12px 6px 16px;
-  border: 1.5px solid var(--line);
-  border-radius: var(--r-m);
-  background: var(--card);
-  overflow: clip;
-  transition: translate 0.15s var(--ease), box-shadow 0.15s var(--ease);
+.sheet-lines > li + li {
+  border-top: 1px solid var(--rule);
 }
 
-/* the K-band colour as a stripe on the left: still readable at a glance */
-.word-row::before {
+.line {
+  position: relative;
+  border-radius: var(--r-s);
+  transition: background 0.15s;
+}
+
+/* the K-band colour as a small tab against the margin */
+.line::before {
   content: '';
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 6px;
+  top: 12px;
+  left: 6px;
+  width: 5px;
+  height: 22px;
+  border-radius: 3px;
+  border: 1.2px solid var(--tone);
   background: var(--fill);
-  border-right: 1.5px solid var(--line);
 }
 
-.word-row-word {
-  flex: none;
-  max-width: 55%;
-  overflow: clip;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 21px;
-  color: var(--ink);
+.line .speak-btn,
+.line .tip {
+  position: relative;
+  z-index: 1;
 }
 
-.word-row-meaning {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  color: var(--ink-2);
-}
-
-.word-row .mastery-meter {
-  flex: none;
-}
-
-.word-row:has(.card-link:focus-visible) {
+.line:has(.card-link:focus-visible) {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 @media (hover: hover) {
-  .word-row:hover {
-    translate: -1px -1px;
-    box-shadow: var(--pop);
+  .line:hover {
+    background: var(--hover);
   }
+}
+
+.line-word-link {
+  color: var(--ink);
+}
+
+/* full: the word on the left, what you wrote down about it on the right */
+.line-full {
+  display: grid;
+  grid-template-columns: minmax(170px, 230px) minmax(0, 1fr);
+  gap: 0 22px;
+  padding: 12px 14px 12px 22px;
+}
+
+.line-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.line-full .line-word-link {
+  font-size: 27px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.line-head .k-badge {
+  margin-top: 4px;
+}
+
+.line-sub {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 7px;
+  min-height: 28px;
+}
+
+.line-pos {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-3);
+}
+
+.line-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.line-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tone);
+}
+
+.line-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.line-notes p {
+  margin: 0;
+}
+
+.line-meaning {
+  --lines: 2;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.line-translation {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.line-phrases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+/* the phrases look marked with a highlighter */
+.line-phrase {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--marker) 48%, transparent);
+  font-size: 16.5px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.line-sentence {
+  --lines: 2;
+  font-size: 16.5px;
+  font-style: italic;
+  line-height: 1.35;
+  color: var(--ink-3);
+}
+
+.line-sentence-mine {
+  color: var(--ink-2);
+}
+
+/* brief: one ruled line per word; the details open on hover (components/WordPreview.tsx) */
+.line-brief {
+  display: grid;
+  grid-template-columns: minmax(110px, 170px) auto minmax(0, 120px) minmax(0, 1fr) minmax(0, 160px) auto 52px;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 4px 14px 4px 22px;
+}
+
+.line-brief::before {
+  top: 12px;
+}
+
+/* a narrow desktop window (900–1100 px): the notes go under the word, the margin slims down */
+@container sheet (max-width: 760px) {
+  .sheet-group {
+    --margin-w: 92px;
+  }
+
+  .line-full {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .line-full .line-word {
+    display: contents;
+  }
+
+  .line-meta {
+    order: 5;
+  }
+
+  .line-brief {
+    grid-template-columns: minmax(100px, 150px) auto minmax(0, 1fr) minmax(0, 120px) auto auto;
+  }
+
+  .line-brief .line-ipa {
+    display: none;
+  }
+}
+
+.word-preview-phrases {
+  margin: 8px 0 0;
+}
+
+.word-preview-phrases .line-phrase {
+  font-size: 15px;
+}
+
+.line-brief .line-word-link {
+  font-size: 21px;
+}
+
+.line-brief-meaning {
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+.line-k {
+  justify-self: end;
 }
 
 /* ---------- word card colours setting ---------- */

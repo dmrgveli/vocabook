@@ -526,8 +526,107 @@
     min-width: 0;
   }
 
-  .word-list {
+  /* ---------- the ruled notebook page ---------- */
+
+  /* the margin becomes a heading line above each group; the red rule stays on the left */
+  .sheet {
+    margin-top: 12px;
+    padding: 0 0 4px;
+  }
+
+  .sheet-group {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sheet-margin {
+    flex-direction: row;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+    padding: 10px 14px 8px 16px;
+    border-right: 0;
+    border-bottom: 1.5px solid var(--margin-rule);
+  }
+
+  .sheet-margin > * {
+    position: static;
+  }
+
+  .sheet-margin-count {
+    margin: 0 0 0 auto;
+  }
+
+  .sheet[data-margin='plain'] .sheet-margin {
+    display: none;
+  }
+
+  .sheet-lines {
+    margin-left: 10px;
+    border-left: 1.5px solid var(--margin-rule);
+  }
+
+  .line {
+    border-radius: 0;
+  }
+
+  /* full: word line, then the notes, then where it is from */
+  .line-full {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px 12px 20px;
+  }
+
+  .line-full .line-word {
+    display: contents;
+  }
+
+  .line-full .line-word-link {
+    font-size: 25px;
+  }
+
+  .line-sub {
+    min-height: 24px;
+  }
+
+  .line-notes {
+    padding-top: 0;
+  }
+
+  .line-meaning {
+    --lines: 3;
+  }
+
+  .line-phrase,
+  .line-sentence {
+    font-size: 16px;
+  }
+
+  .line-meta {
+    order: 5;
+    margin-top: 2px;
+  }
+
+  /* brief: word, meaning, mastery and level; a tap opens the word */
+  .line-brief {
+    grid-template-columns: minmax(0, max-content) auto minmax(0, 1fr) auto auto;
+    gap: 8px;
+    min-height: 48px;
+    padding: 4px 12px 4px 20px;
+  }
+
+  .line-brief .line-word-link {
+    max-width: 44vw;
+    font-size: 20px;
+  }
+
+  .line-brief .line-ipa,
+  .line-brief .line-source {
+    display: none;
+  }
+
+  .line-k {
+    justify-self: end;
   }
 
   /* ---------- collocations by grammar ---------- */
