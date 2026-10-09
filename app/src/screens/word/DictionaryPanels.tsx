@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react'
 import { enrichEntry, isEnriching } from '../../api/enrich'
 import { SpeakButton } from '../../components/ui'
 import { LinkedText, PeekWord } from '../../components/WordPeek'
-import { isEnrichmentCurrent, type Collocation, type Enrichment, type Entry } from '../../data/model'
+import { patchEnrichment } from '../../data/db'
+import { isEnrichmentCurrent, type Collocation, type CorpusData, type Enrichment, type Entry } from '../../data/model'
 import { speak } from '../../speech'
+import { CompareWords, CorpusCollocations, CorpusSkeleton, RealExamples, useCorpus } from './CorpusPanels'
 import { Panel } from './Panel'
 
 // The automatic layer of a word page: everything that comes from the dictionaries.
@@ -53,7 +55,9 @@ export function Dictionary({ entry }: { entry: Entry }) {
     )
   }
 
-  return <DictionaryPanels enrichment={e} word={entry.word} aside={refresh} />
+  return (
+    <DictionaryPanels enrichment={e} word={entry.word} aside={refresh} onCorpus={(corpus) => void patchEnrichment(entry.id, { corpus })} />
+  )
 }
 
 /**
@@ -65,12 +69,22 @@ export function DictionaryPanels({
   word,
   aside,
   part,
+  onCorpus,
 }: {
   enrichment: Enrichment
   word: string
   aside?: React.ReactNode
   part?: 'main' | 'extra'
+  /** keeps corpus data once it is fetched (word pages store it in the entry) */
+  onCorpus?: (corpus: CorpusData) => void
 }) {
+  const corpus = useCorpus(word, e.corpus, onCorpus)
+  const rich = corpus.status === 'ready' ? corpus.data : undefined
+  // Dictionary synonyms stay "Similar"; the corpus thesaurus is words *used* like this one
+  // (decision → action, policy, plan), which is related but not the same meaning.
+  const usedLike = (rich?.similar ?? []).filter((w) => !e.synonyms.includes(w)).slice(0, 8)
+  // Worth comparing: near-synonyms first, they are the ones learners mix up.
+  const compareWith = [...e.synonyms.filter((w) => !w.includes(' ')), ...(rich?.similar ?? [])].slice(0, 3)
   return (
     <>
       {part !== 'extra' && (
@@ -79,16 +93,35 @@ export function DictionaryPanels({
         </Panel>
       )}
 
-      {part !== 'extra' && hasCollocations(e.collocations) && (
-        <Panel title="Used together with" delay={0.05}>
-          <Collocations word={word} collocations={e.collocations} />
+      {part !== 'extra' &&
+        (rich?.groups.length ? (
+          <Panel title="Used together with" delay={0.05}>
+            <CorpusCollocations groups={rich.groups} />
+          </Panel>
+        ) : corpus.status === 'loading' ? (
+          <Panel title="Used together with" delay={0.05}>
+            <CorpusSkeleton />
+          </Panel>
+        ) : (
+          hasCollocations(e.collocations) && (
+            <Panel title="Used together with" delay={0.05}>
+              <Collocations word={word} collocations={e.collocations} />
+            </Panel>
+          )
+        ))}
+
+      {part !== 'extra' && rich && rich.examples.length > 0 && (
+        <Panel title="In real sentences" delay={0.08}>
+          <RealExamples examples={rich.examples} />
         </Panel>
       )}
 
-      {part !== 'main' && (e.synonyms.length > 0 || e.antonyms.length > 0) && (
+      {part !== 'main' && (e.synonyms.length > 0 || e.antonyms.length > 0 || usedLike.length > 0) && (
         <Panel title="Related words" delay={0.1}>
           {e.synonyms.length > 0 && <WordChips label="Similar" words={e.synonyms} />}
+          {usedLike.length > 0 && <WordChips label="Used like" words={usedLike} />}
           {e.antonyms.length > 0 && <WordChips label="Opposite" words={e.antonyms} />}
+          {rich && !word.includes(' ') && <CompareWords word={word} pos={rich.pos} candidates={compareWith} />}
         </Panel>
       )}
 

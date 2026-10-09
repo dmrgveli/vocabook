@@ -67,6 +67,32 @@ export interface Enrichment {
   collocations: { before: Collocation[]; after: Collocation[] }
   /** Layout of this object; older versions are fetched again when the word is opened. */
   version?: number
+  /** Richer data from a large corpus, added when the word page is opened (see api/corpus.ts). */
+  corpus?: CorpusData
+}
+
+/** Word data from a 52-billion-word web corpus: grammatical collocations, real examples, similar words. */
+export interface CorpusData {
+  fetchedAt: Timestamp
+  /** part of speech the corpus used: -n, -v, -j, -a… */
+  pos: string
+  groups: CollocationGroup[]
+  examples: CorpusExample[]
+  similar: string[]
+}
+
+/** Collocations of one grammatical kind, e.g. verbs before a noun: "make a decision". */
+export interface CollocationGroup {
+  id: string
+  label: string
+  items: { word: string; phrase: string }[]
+}
+
+/** A real sentence, split around the word so it can be highlighted. */
+export interface CorpusExample {
+  before: string
+  word: string
+  after: string
 }
 
 /** A neighbouring word; `score` is Datamuse's relative frequency for the pair. */

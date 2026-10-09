@@ -36,6 +36,10 @@ export interface FlashCard {
   prompt: string
   /** where the sentence or the word came from */
   source?: string
+  /** moment cards: the whole sentence, shown with the answer */
+  sentence?: string
+  /** the sentence is real-world English from the corpus, not one you met it in */
+  realExample?: boolean
   choices: Choice[]
 }
 
@@ -224,9 +228,17 @@ export function cardFor(
       [{ label: entry.word, correct: true }, ...distractors(entry, all, OPTIONS - 1, random).map((e) => ({ label: e.word, correct: false }))],
       random,
     )
-  const moments = metEncounters(entry)
+  const own = metEncounters(entry)
     .filter((enc) => enc.sentence && withGap(enc.sentence, entry.word))
-    .map((enc) => ({ prompt: withGap(enc.sentence!, entry.word)!, source: enc.source }))
+    .map((enc) => ({ prompt: withGap(enc.sentence!, entry.word)!, source: enc.source, sentence: enc.sentence! }))
+  // No sentence of your own: a real example sentence from the corpus, if the word page fetched them.
+  const real = own.length
+    ? []
+    : (entry.enrichment?.corpus?.examples ?? [])
+        .map((e) => `${e.before} ${e.word}${/^[.,;:!?'’)]/.test(e.after) ? '' : ' '}${e.after}`.trim())
+        .filter((sentence) => withGap(sentence, entry.word))
+        .map((sentence) => ({ prompt: withGap(sentence, entry.word)!, sentence, realExample: true }))
+  const moments: { prompt: string; source?: string; sentence: string; realExample?: boolean }[] = own.length ? own : real
   const clue = clueFor(entry, commonness)
   const firstSource = [...metEncounters(entry)].sort((a, b) => a.date.localeCompare(b.date))[0]?.source
   const meanings = meaningChoices(entry, all, random, commonness)

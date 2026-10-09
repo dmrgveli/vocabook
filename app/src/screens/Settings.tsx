@@ -2,9 +2,11 @@ import { AnimatePresence, motion } from 'motion/react'
 import { BellRing, Check, Clapperboard, Cloud, Database, ExternalLink, Info, Monitor, Moon, Palette, RefreshCw, Sun, Volume2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
+import { setWordSource, useWordSource, type WordSource } from '../api/corpus'
 import { enrichEntry } from '../api/enrich'
 import { useAppState } from '../app/state'
 import { AccountCard } from '../components/AccountCard'
+import { useAuth } from '../sync/auth'
 import { isEnrichmentCurrent, type Entry } from '../data/model'
 import { REMINDER_MIN_WORDS, setRemindersEnabled, useRemindersEnabled } from '../data/reminders'
 import { canSpeak, setSpeechPrefs, speak, useEnglishVoices, useSpeechPrefs } from '../speech'
@@ -311,7 +313,7 @@ function VideoSettings() {
 
 function DataSettings({ entries }: { entries: Entry[] }) {
   const { toast } = useAppState()
-  const missing = entries.filter((e) => !isEnrichmentCurrent(e.enrichment) || e.enrichment.definitionsFrom !== 'free-dictionary')
+  const missing = entries.filter((e) => !isEnrichmentCurrent(e.enrichment))
   const [refreshing, setRefreshing] = useState(false)
 
   async function refetch() {
@@ -323,18 +325,49 @@ function DataSettings({ entries }: { entries: Entry[] }) {
   }
 
   return (
+    <>
+      <WordSourceField />
+      <Field
+        title={`${entries.length} ${entries.length === 1 ? 'word' : 'words'} on this device`}
+        hint="Everything is saved in this browser first. Definitions are copied into each word, so the notebook keeps working offline; each device fetches its own."
+      >
+        {missing.length > 0 ? (
+          <button className="btn" onClick={refetch} disabled={refreshing}>
+            <RefreshCw size={14} className={refreshing ? 'spin' : ''} />
+            Refresh {missing.length} {missing.length === 1 ? 'definition' : 'definitions'}
+          </button>
+        ) : (
+          <span className="faint small">All definitions are up to date.</span>
+        )}
+      </Field>
+    </>
+  )
+}
+
+/** Rich word data from a large corpus, or the classic data (also the way back if the rich one disappoints). */
+function WordSourceField() {
+  const value = useWordSource()
+  const auth = useAuth()
+  const signedIn = auth.status === 'signed-in' || auth.status === 'expired'
+  return (
     <Field
-      title={`${entries.length} ${entries.length === 1 ? 'word' : 'words'} on this device`}
-      hint="Everything is saved in this browser first. Definitions are copied into each word, so the notebook keeps working offline; each device fetches its own."
+      title="Word details"
+      hint={
+        <>
+          Rich: words used together grouped by grammar, real example sentences and comparisons with similar words, from a very large
+          collection of real English. Classic: the earlier, simpler word data.
+          {value === 'rich' && !signedIn && ' Rich details need sign-in; until then you see the classic ones.'}
+        </>
+      }
     >
-      {missing.length > 0 ? (
-        <button className="btn" onClick={refetch} disabled={refreshing}>
-          <RefreshCw size={14} className={refreshing ? 'spin' : ''} />
-          Refresh {missing.length} {missing.length === 1 ? 'definition' : 'definitions'}
-        </button>
-      ) : (
-        <span className="faint small">All definitions are up to date.</span>
-      )}
+      <div className="choice choice-2" role="radiogroup" aria-label="Word details">
+        {(['rich', 'classic'] as WordSource[]).map((id) => (
+          <button key={id} role="radio" aria-checked={value === id} className="choice-btn" onClick={() => setWordSource(id)}>
+            {value === id && <motion.span layoutId="word-source-thumb" className="choice-thumb" transition={{ type: 'spring', stiffness: 500, damping: 36 }} />}
+            <span className="choice-label">{id === 'rich' ? 'Rich' : 'Classic'}</span>
+          </button>
+        ))}
+      </div>
     </Field>
   )
 }
@@ -353,7 +386,12 @@ const CREDITS: { group: string; items: Credit[] }[] = [
     group: 'Words and data',
     items: [
       { name: 'Free Dictionary API', href: 'https://dictionaryapi.dev/', what: 'Definitions, examples, recordings and origins, from Wiktionary', license: 'CC BY-SA' },
-      { name: 'Datamuse API', href: 'https://www.datamuse.com/api/', what: 'Suggestions, words used together, related words, backup definitions' },
+      { name: 'Datamuse API', href: 'https://www.datamuse.com/api/', what: 'Suggestions, backup definitions; classic word data' },
+      {
+        name: 'Sketch Engine',
+        href: 'https://www.sketchengine.eu/',
+        what: 'Words used together, real example sentences, similar words and comparisons, from the English Web 2021 corpus (enTenTen21)',
+      },
       {
         name: 'BNC/COCA word family lists',
         href: 'https://www.wgtn.ac.nz/lals/resources/paul-nations-resources/vocabulary-analysis-programs',

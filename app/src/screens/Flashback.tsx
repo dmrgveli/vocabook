@@ -20,7 +20,7 @@ import {
   type RoundResult,
 } from '../data/flashback'
 import { FlashbackHistoryButton } from '../components/FlashbackHistory'
-import { MASTERY_LABELS, metEncounters, type Entry } from '../data/model'
+import { MASTERY_LABELS, type Entry } from '../data/model'
 import { wordPath } from '../data/paths'
 import { speak } from '../speech'
 
@@ -301,7 +301,11 @@ function Ask({ card, onChoose }: { card: FlashCard; onChoose: (i: number) => voi
           <blockquote className="flash-prompt word-font" lang="en">
             <GapSentence text={card.prompt} />
           </blockquote>
-          {card.source && <p className="faint small flash-source">You met it in {card.source}</p>}
+          {card.realExample ? (
+            <p className="faint small flash-source">From real-world English</p>
+          ) : (
+            card.source && <p className="faint small flash-source">You met it in {card.source}</p>
+          )}
         </>
       )}
       {card.kind === 'meaning' && <p className="flash-clue">{card.prompt}</p>}
@@ -407,7 +411,7 @@ function Reveal({ card, entry, answer, onNext }: { card: FlashCard; entry: Entry
 
 function AnswerDetails({ entry, card }: { entry: Entry; card: FlashCard }) {
   const definition = entry.enrichment?.meanings[0]?.definitions[0]?.definition
-  const moment = card.kind === 'moment' ? metEncounters(entry).find((enc) => enc.sentence && enc.source === card.source) : undefined
+  const moment = card.kind === 'moment' && card.sentence ? { sentence: card.sentence, source: card.realExample ? 'real-world English' : card.source } : undefined
   return (
     <>
       <div className="row flash-word-row">

@@ -3,6 +3,7 @@ import { verifyGoogleIdToken } from './google'
 import { handle, type Env } from './index'
 import { validateNotebook } from './schema'
 import { issueSession, verifySession } from './session'
+import { DAILY_BUDGET, shapeDiff, shapeExamples, shapeRelations } from './sketch'
 
 const CLIENT_ID = 'test-client.apps.googleusercontent.com'
 const SECRET = 'test-session-secret-0123456789abcdef'
@@ -214,5 +215,85 @@ describe('session tokens', () => {
     await expect(verifySession(token, SECRET, now() + 61 * 86400)).rejects.toThrow('Session expired')
     await expect(verifySession(`vs1.${payload}`, SECRET)).rejects.toThrow('Malformed')
     await expect(issueSession('1', 'short')).rejects.toThrow('SESSION_SECRET')
+  })
+})
+
+describe('word data (Sketch Engine)', () => {
+  const wsketch = {
+    lpos: '-v',
+    relfreq: 16.3,
+    Items: [
+      { word: 'crime', cm: 'commit a crime', score: 9.1, gramrel: 'objects of "%w"' },
+      { word: 'suicide', cm: 'commit suicide', score: 8.7, gramrel: 'objects of "%w"' },
+      { word: 'deeply', cm: 'deeply committed to', score: 8.2, gramrel: 'modifiers of "%w"' },
+      { word: 'they', cm: 'they commit', score: 5, gramrel: 'pronominal subjects of "%w"' },
+    ],
+  }
+  const conc = { Lines: [{ Left: [{ str: 'He' }, { str: 'was' }], Kwic: [{ str: 'committed' }], Right: [{ str: 'to' }, { str: 'it' }, { str: '.' }] }] }
+  const thes = { Words: [{ word: 'perpetrate', score: 0.3 }] }
+
+  function upstream() {
+    const calls: string[] = []
+    const fetcher = async (url: string) => {
+      calls.push(url)
+      const method = new URL(url).pathname.split('/').pop()
+      const body = method === 'wsketch' ? wsketch : method === 'concordance' ? conc : method === 'thes' ? thes : { content: {} }
+      return new Response(JSON.stringify(body))
+    }
+    return { calls, fetcher }
+  }
+
+  let bucket: ReturnType<typeof fakeBucket>
+  const env = (key: string | null = 'test-key') =>
+    ({ BUCKET: bucket as unknown as R2Bucket, GOOGLE_CLIENT_ID: CLIENT_ID, SESSION_SECRET: SECRET, ALLOWED_ORIGINS: ORIGIN, SKETCH_ENGINE_KEY: key ?? undefined }) as Env
+  const get = async (path: string, e: Env, fetcher: (url: string, init: RequestInit) => Promise<Response>, token?: string) =>
+    handle(
+      new Request(`https://sync.example${path}`, { headers: { origin: ORIGIN, ...(token ? { authorization: `Bearer ${token}` } : {}) } }),
+      e,
+      fetchKeys,
+      fetcher,
+    )
+
+  beforeAll(() => {
+    bucket = fakeBucket()
+  })
+
+  it('shapes relations, drops pronouns, keeps the usual phrase', () => {
+    const rels = shapeRelations(wsketch.Items)
+    expect(rels.map((r) => r.name)).toEqual(['objects of "%w"', 'modifiers of "%w"'])
+    expect(rels[0].items[0]).toEqual({ w: 'crime', p: 'commit a crime', s: 9.1 })
+    expect(shapeExamples(conc.Lines)).toEqual([{ l: 'He was', k: 'committed', r: 'to it .' }])
+    expect(
+      shapeDiff({ common: [{ table: { Header: ['"%w" and/or ...'], Rows: [{ word: 'small', rnk1: 9.3, rnk2: 10.1, cnt1: 50, cnt2: 90 }] } }] }),
+    ).toEqual([{ name: '"%w" and/or ...', rows: [{ w: 'small', a: 9.3, b: 10.1, ca: 50, cb: 90 }] }])
+  })
+
+  it('needs sign-in, fetches once and then serves everyone from the cache', async () => {
+    const { calls, fetcher } = upstream()
+    expect((await get('/v1/word?lemma=commit&pos=-v', env(), fetcher)).status).toBe(401)
+    const token = (await issueSession('123', SECRET)).token
+    const first = await get('/v1/word?lemma=Commit&pos=-v', env(), fetcher, token)
+    expect(first.status).toBe(200)
+    const body = (await first.json()) as { lemma: string; pos: string; rels: unknown[]; examples: unknown[]; similar: unknown[] }
+    expect(body).toMatchObject({ lemma: 'commit', pos: '-v' })
+    expect(body.rels).toHaveLength(2)
+    expect(body.examples).toHaveLength(1)
+    expect(calls).toHaveLength(3)
+    expect(calls.every((u) => u.includes('corpname=preloaded%2Fententen21_tt31'))).toBe(true)
+
+    const other = (await issueSession('456', SECRET)).token
+    expect((await get('/v1/word?lemma=commit&pos=-v', env(), fetcher, other)).status).toBe(200)
+    expect(calls).toHaveLength(3) // served from R2
+  })
+
+  it('rejects bad input, answers 503 without a key and stops at the daily budget', async () => {
+    const { fetcher } = upstream()
+    const token = (await issueSession('123', SECRET)).token
+    expect((await get('/v1/word?lemma=%3Cscript%3E', env(), fetcher, token)).status).toBe(400)
+    expect((await get('/v1/word?lemma=linger', env(null), fetcher, token)).status).toBe(503)
+    expect((await get('/v1/compare?a=big&b=big', env(), fetcher, token)).status).toBe(400)
+    const today = new Date().toISOString().slice(0, 10)
+    await bucket.put(`cache/ske/v1/budget/${today}.json`, JSON.stringify({ n: DAILY_BUDGET }))
+    expect((await get('/v1/word?lemma=linger', env(), fetcher, token)).status).toBe(503)
   })
 })

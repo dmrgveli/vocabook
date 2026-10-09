@@ -84,6 +84,7 @@ that need them:
 | Sync API URL (app) | GitHub Actions variable `SYNC_URL` | No |
 | Google OAuth client ID (Worker) | `wrangler secret put GOOGLE_CLIENT_ID` | Stored as a Worker secret |
 | Session signing key (Worker) | `wrangler secret put SESSION_SECRET` (32+ random characters) | **Yes** |
+| Sketch Engine API key (Worker) | `wrangler secret put SKETCH_ENGINE_KEY` | **Yes** |
 | Allowed origins (Worker) | `worker/wrangler.jsonc` → `ALLOWED_ORIGINS` | No |
 | Cloudflare account ID | GitHub Actions variable `CLOUDFLARE_ACCOUNT_ID` | No |
 | Cloudflare API token (for CI deploys) | GitHub Actions **secret** `CLOUDFLARE_API_TOKEN` | **Yes** |
@@ -101,7 +102,8 @@ does not hard-code one so forks use their own.
 ## Data sources and credits
 
 - [Free Dictionary API](https://dictionaryapi.dev/) — definitions, examples, recordings and origins (from Wiktionary, CC BY-SA)
-- [Datamuse API](https://www.datamuse.com/api/) — suggestions, collocations, related words, backup definitions
+- [Sketch Engine](https://www.sketchengine.eu/) — words used together (by grammar), real example sentences, similar words and comparisons, from the English Web 2021 corpus
+- [Datamuse API](https://www.datamuse.com/api/) — suggestions, backup definitions and the classic word data
 - [BNC/COCA word family lists](https://www.wgtn.ac.nz/lals/resources/paul-nations-resources/vocabulary-analysis-programs) — Nation, I.S.P. (2017). *The BNC/COCA Level 6 word family lists* (Version 1.0.0). Victoria University of Wellington. Licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); `app/public/bnc-coca-levels.json` is a derived work under the same licence.
 - [YouGlish](https://youglish.com/) — pronunciation in real YouTube videos (loaded only after consent; [YouTube Terms](https://www.youtube.com/t/terms), [Google Privacy Policy](https://policies.google.com/privacy))
 - [Google Identity Services](https://developers.google.com/identity/gsi/web) and [Cloudflare Workers & R2](https://developers.cloudflare.com/workers/)

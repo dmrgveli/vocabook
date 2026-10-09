@@ -514,6 +514,16 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* ---------- collocations by grammar ---------- */
+
+  .colloc-group {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .colloc-phrase {
+    font-size: 17px;
+  }
+
   /* ---------- word map ---------- */
 
   .kwic-map {

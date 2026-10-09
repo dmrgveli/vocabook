@@ -1,11 +1,14 @@
 import { AuthError, verifyGoogleIdToken, type KeyFetcher } from './google'
 import { MAX_BODY_BYTES, SchemaError, validateNotebook } from './schema'
 import { isSessionToken, issueSession, verifySession } from './session'
+import { getDiff, getWord, SketchError, validLemma, validPos } from './sketch'
 
 // Sync API for the notebook.
 //   GET    /v1/notebook  → { etag, notebook }   (both null when nothing is stored yet)
 //   PUT    /v1/notebook  ← notebook JSON, with If-Match: <etag> or If-None-Match: *  → { etag }
 //   DELETE /v1/notebook  → removes the stored copy
+//   GET    /v1/word?lemma=thrive&pos=-v        → word sketch, examples, similar words (Sketch Engine, cached)
+//   GET    /v1/compare?a=big&b=large&pos=-j    → how two words are used differently (cached)
 //   POST   /v1/session   → { token, expires }: trades a Google ID token (or a session
 //                          that is still valid) for a fresh session token
 // Every request carries a Google ID token or a session token issued here; the storage
@@ -16,6 +19,8 @@ export interface Env {
   GOOGLE_CLIENT_ID: string
   /** Signs session tokens. A Worker secret; changing it signs everyone out. */
   SESSION_SECRET: string
+  /** Sketch Engine API key (Worker secret). Without it /v1/word answers 503 and the app keeps its older word data. */
+  SKETCH_ENGINE_KEY?: string
   /** Comma-separated list of origins allowed to call the API. */
   ALLOWED_ORIGINS: string
 }
@@ -65,12 +70,26 @@ async function readLimited(request: Request): Promise<string> {
   return new TextDecoder().decode(bytes)
 }
 
-export async function handle(request: Request, env: Env, fetchKeys?: KeyFetcher): Promise<Response> {
+/** Word data rarely changes: let the browser keep it for a day. */
+function cachedJson(body: unknown, cors: Record<string, string>): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, max-age=86400', ...cors },
+  })
+}
+
+export async function handle(
+  request: Request,
+  env: Env,
+  fetchKeys?: KeyFetcher,
+  fetchUpstream: (url: string, init: RequestInit) => Promise<Response> = fetch,
+): Promise<Response> {
   const cors = corsHeaders(request.headers.get('origin'), env)
   const { pathname } = new URL(request.url)
 
   if (request.method === 'OPTIONS') return new Response(null, { status: cors['Access-Control-Allow-Origin'] ? 204 : 403, headers: cors })
-  if (pathname !== '/v1/notebook' && pathname !== '/v1/session') return json({ error: 'Not found' }, 404, cors)
+  const routes = ['/v1/notebook', '/v1/session', '/v1/word', '/v1/compare']
+  if (!routes.includes(pathname)) return json({ error: 'Not found' }, 404, cors)
 
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1]
   if (!token) return json({ error: 'Sign-in required' }, 401, cors)
@@ -83,6 +102,26 @@ export async function handle(request: Request, env: Env, fetchKeys?: KeyFetcher)
   } catch (err) {
     if (err instanceof AuthError) return json({ error: err.message }, 401, cors)
     throw err
+  }
+
+  if (pathname === '/v1/word' || pathname === '/v1/compare') {
+    if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405, cors)
+    const params = new URL(request.url).searchParams
+    const pos = validPos(params.get('pos'))
+    try {
+      if (pathname === '/v1/word') {
+        const lemma = validLemma(params.get('lemma'))
+        if (!lemma) return json({ error: 'Bad word' }, 400, cors)
+        return cachedJson(await getWord(env, lemma, pos, fetchUpstream), cors)
+      }
+      const a = validLemma(params.get('a'))
+      const b = validLemma(params.get('b'))
+      if (!a || !b || a.includes(' ') || b.includes(' ') || a === b) return json({ error: 'Bad words' }, 400, cors)
+      return cachedJson(await getDiff(env, a, b, pos, fetchUpstream), cors)
+    } catch (err) {
+      if (err instanceof SketchError) return json({ error: err.message }, err.status, cors)
+      throw err
+    }
   }
 
   if (pathname === '/v1/session') {
