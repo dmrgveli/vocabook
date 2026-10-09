@@ -10,7 +10,9 @@ import { QuickAddDialog } from '../components/QuickAddDialog'
 import { ReminderPopup } from '../components/ReminderPopup'
 import { Sidebar } from '../components/Sidebar'
 import { Toaster } from '../components/Toaster'
+import { UpdateBanner } from '../components/UpdateBanner'
 import { WordPeek } from '../components/WordPeek'
+import { setWordFrequencies } from '../data/wordFrequency'
 import { useEntries } from '../hooks'
 import { Notebook } from '../screens/Notebook'
 import { Settings } from '../screens/Settings'
@@ -24,6 +26,11 @@ export function App() {
   const location = useLocation()
   const { openQuickAdd } = useAppState()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  // Corpus frequencies already stored in words feed the level badges' tips.
+  useEffect(() => {
+    if (entries) setWordFrequencies(entries.map((e) => [e.word, e.enrichment?.corpus?.perMillion]))
+  }, [entries])
 
   // The mobile menu closes on navigation and on Escape.
   useEffect(() => {
@@ -92,6 +99,7 @@ export function App() {
       <WordPeek />
       <ProfileDialog entries={entries ?? []} />
       <Toaster />
+      <UpdateBanner />
     </>
   )
 }

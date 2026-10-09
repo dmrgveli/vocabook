@@ -21,6 +21,12 @@ export interface Env {
   SESSION_SECRET: string
   /** Sketch Engine API key (Worker secret). Without it /v1/word answers 503 and the app keeps its older word data. */
   SKETCH_ENGINE_KEY?: string
+  /**
+   * Optional maintenance token (Worker secret, normally unset): lets a developer call the
+   * word data routes without a Google sign-in, to test against the live corpus. Delete
+   * the secret when done and the door is gone.
+   */
+  MAINTENANCE_TOKEN?: string
   /** Comma-separated list of origins allowed to call the API. */
   ALLOWED_ORIGINS: string
 }
@@ -70,6 +76,17 @@ async function readLimited(request: Request): Promise<string> {
   return new TextDecoder().decode(bytes)
 }
 
+/** Compares in constant time; only long tokens count, and only while the secret exists. */
+function isMaintenanceToken(token: string, secret: string | undefined): boolean {
+  if (!secret || secret.length < 32) return false
+  const a = new TextEncoder().encode(token)
+  const b = new TextEncoder().encode(`mt.${secret}`)
+  if (a.byteLength !== b.byteLength) return false
+  let diff = 0
+  for (let i = 0; i < a.byteLength; i++) diff |= a[i] ^ b[i]
+  return diff === 0
+}
+
 /** Word data rarely changes: let the browser keep it for a day. */
 function cachedJson(body: unknown, cors: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
@@ -94,9 +111,11 @@ export async function handle(
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1]
   if (!token) return json({ error: 'Sign-in required' }, 401, cors)
 
+  const wordRoute = pathname === '/v1/word' || pathname === '/v1/compare'
+  const maintenance = wordRoute && isMaintenanceToken(token, env.MAINTENANCE_TOKEN)
   let sub: string
   try {
-    sub = isSessionToken(token)
+    sub = maintenance ? 'maintenance' : isSessionToken(token)
       ? (await verifySession(token, env.SESSION_SECRET)).sub
       : (await verifyGoogleIdToken(token, env.GOOGLE_CLIENT_ID, { fetchKeys })).sub
   } catch (err) {

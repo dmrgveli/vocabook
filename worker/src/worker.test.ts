@@ -222,6 +222,7 @@ describe('word data (Sketch Engine)', () => {
   const wsketch = {
     lpos: '-v',
     relfreq: 16.3,
+    freq: 850891,
     Items: [
       { word: 'crime', cm: 'commit a crime', score: 9.1, gramrel: 'objects of "%w"' },
       { word: 'suicide', cm: 'commit suicide', score: 8.7, gramrel: 'objects of "%w"' },
@@ -237,7 +238,8 @@ describe('word data (Sketch Engine)', () => {
     const fetcher = async (url: string) => {
       calls.push(url)
       const method = new URL(url).pathname.split('/').pop()
-      const body = method === 'wsketch' ? wsketch : method === 'concordance' ? conc : method === 'thes' ? thes : { content: {} }
+      const body =
+        method === 'wsketch' ? wsketch : method === 'concordance' ? conc : method === 'thes' ? thes : method === 'wordlist' ? { total: 3412 } : { content: {} }
       return new Response(JSON.stringify(body))
     }
     return { calls, fetcher }
@@ -274,16 +276,26 @@ describe('word data (Sketch Engine)', () => {
     const token = (await issueSession('123', SECRET)).token
     const first = await get('/v1/word?lemma=Commit&pos=-v', env(), fetcher, token)
     expect(first.status).toBe(200)
-    const body = (await first.json()) as { lemma: string; pos: string; rels: unknown[]; examples: unknown[]; similar: unknown[] }
-    expect(body).toMatchObject({ lemma: 'commit', pos: '-v' })
+    const body = (await first.json()) as { lemma: string; pos: string; perMillion: number; rels: unknown[]; examples: unknown[]; similar: unknown[] }
+    expect(body).toMatchObject({ lemma: 'commit', pos: '-v', perMillion: 16.3 })
     expect(body.rels).toHaveLength(2)
     expect(body.examples).toHaveLength(1)
-    expect(calls).toHaveLength(3)
+    expect(calls).toHaveLength(3) // wsketch, concordance, thesaurus
     expect(calls.every((u) => u.includes('corpname=preloaded%2Fententen21_tt31'))).toBe(true)
 
     const other = (await issueSession('456', SECRET)).token
     expect((await get('/v1/word?lemma=commit&pos=-v', env(), fetcher, other)).status).toBe(200)
     expect(calls).toHaveLength(3) // served from R2
+  })
+
+  it('accepts a maintenance token only while its secret exists, and only for word data', async () => {
+    const { fetcher } = upstream()
+    const secret = 'm'.repeat(40)
+    const withToken = { ...env(), MAINTENANCE_TOKEN: secret } as Env
+    expect((await get('/v1/word?lemma=commit&pos=-v', withToken, fetcher, `mt.${secret}`)).status).toBe(200)
+    expect((await get('/v1/word?lemma=commit&pos=-v', env(), fetcher, `mt.${secret}`)).status).toBe(401)
+    expect((await get('/v1/word?lemma=commit&pos=-v', withToken, fetcher, `mt.${'x'.repeat(40)}`)).status).toBe(401)
+    expect((await get('/v1/notebook', withToken, fetcher, `mt.${secret}`)).status).toBe(401)
   })
 
   it('rejects bad input, answers 503 without a key and stops at the daily budget', async () => {

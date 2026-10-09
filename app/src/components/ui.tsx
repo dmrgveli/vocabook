@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import { Mic, Snail, Volume2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { bandOf, bandOfWord, describeLevel, formatLevel, levelOf, useLevelsReady } from '../data/levels'
+import { describeFrequency, useWordFrequency } from '../data/wordFrequency'
 import { MASTERY_HINTS, MASTERY_LABELS, MASTERY_LEVELS, type Mastery } from '../data/model'
 import { canSpeak, speak, useSpeaking } from '../speech'
 
@@ -16,14 +17,16 @@ export function toneClass(word: string): string {
  */
 export function KBadge({ word, large, plain }: { word: string; large?: boolean; plain?: boolean }) {
   useLevelsReady()
+  const perMillion = useWordFrequency(word)
   const level = levelOf(word)
   if (!level) return null
   const label = formatLevel(level)
   const description = describeLevel(level)
+  const usage = perMillion === undefined ? undefined : describeFrequency(perMillion)
   const tone = `tone-${bandOf(level)}`
   if (plain)
     return (
-      <span className={`k-badge ${tone}`} title={description}>
+      <span className={`k-badge ${tone}`} title={usage ? `${description}. ${usage}.` : description}>
         {label}
       </span>
     )
@@ -35,6 +38,7 @@ export function KBadge({ word, large, plain }: { word: string; large?: boolean; 
       <span className="tip-bubble" role="tooltip">
         <strong>{description}</strong>
         {level.family && <span>Word family: {level.family}</span>}
+        {usage && <span>{usage}</span>}
       </span>
     </span>
   )

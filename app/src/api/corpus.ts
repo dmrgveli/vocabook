@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { CollocationGroup, CorpusData, CorpusExample } from '../data/model'
+import { setWordFrequencies } from '../data/wordFrequency'
 import { getAuthState, getAuthToken, SYNC_BASE } from '../sync/auth'
 
 // Richer word data from Sketch Engine's English Web corpus (52 billion words), fetched
@@ -59,6 +60,7 @@ export function corpusAvailable(): boolean {
 export interface RawWord {
   lemma: string
   pos: string
+  perMillion?: number
   rels: { name: string; items: { w: string; p: string; s: number }[] }[]
   examples: { l: string; k: string; r: string }[]
   similar: { w: string; s: number }[]
@@ -218,6 +220,7 @@ export function shapeCorpus(raw: RawWord): CorpusData {
   return {
     fetchedAt: new Date().toISOString(),
     pos: raw.pos,
+    perMillion: raw.perMillion,
     groups: shapeGroups(raw),
     examples: shapeExamples(raw.examples),
     similar: shapeSimilar(raw.similar, raw.lemma),
@@ -290,7 +293,11 @@ const diffs = new Map<string, Promise<Comparison>>()
 export function fetchCorpusData(word: string): Promise<CorpusData> {
   let pending = words.get(word)
   if (!pending) {
-    pending = getFromWorker<RawWord>(`/v1/word?${new URLSearchParams({ lemma: word, v: FORMAT })}`).then(shapeCorpus)
+    pending = getFromWorker<RawWord>(`/v1/word?${new URLSearchParams({ lemma: word, v: FORMAT })}`).then((raw) => {
+      const data = shapeCorpus(raw)
+      setWordFrequencies([[word, data.perMillion]])
+      return data
+    })
     pending.catch(() => words.delete(word))
     words.set(word, pending)
   }

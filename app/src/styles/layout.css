@@ -778,3 +778,21 @@
 .avatar-lg.avatar-initial {
   font-size: 24px;
 }
+
+/* ---------- a newer build was published ---------- */
+
+.update-banner {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--pop);
+  font-weight: 600;
+}

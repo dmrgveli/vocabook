@@ -6,12 +6,15 @@ import { LinkedText, PeekWord } from '../../components/WordPeek'
 import { patchEnrichment } from '../../data/db'
 import { isEnrichmentCurrent, type Collocation, type CorpusData, type Enrichment, type Entry } from '../../data/model'
 import { speak } from '../../speech'
-import { CompareWords, CorpusCollocations, CorpusSkeleton, RealExamples, useCorpus } from './CorpusPanels'
+import { CompareWords, CorpusCollocations, CorpusHint, CorpusSkeleton, RealExamples, useCorpus } from './CorpusPanels'
 import { Panel } from './Panel'
 
 // The automatic layer of a word page: everything that comes from the dictionaries.
 
-export function Dictionary({ entry }: { entry: Entry }) {
+/** Which panels to show; the word page spreads them over its two columns. */
+export type DictionaryPart = 'main' | 'related' | 'origin'
+
+export function Dictionary({ entry, part = 'main' }: { entry: Entry; part?: DictionaryPart }) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>(isEnriching(entry.id) ? 'loading' : 'idle')
   const e = entry.enrichment
 
@@ -26,7 +29,8 @@ export function Dictionary({ entry }: { entry: Entry }) {
   // Words added while offline get their dictionary data the first time they are opened;
   // data stored in an older layout is refreshed the same way.
   useEffect(() => {
-    if (!isEnrichmentCurrent(entry.enrichment)) fetchNow()
+    // only one of the page's Dictionary blocks fetches
+    if (part === 'main' && !isEnrichmentCurrent(entry.enrichment)) fetchNow()
   }, [entry.id])
 
   const refresh = (
@@ -36,6 +40,7 @@ export function Dictionary({ entry }: { entry: Entry }) {
   )
 
   if (!e) {
+    if (part !== 'main') return null
     return (
       <Panel title="Definitions">
         {status === 'error' ? (
@@ -56,13 +61,20 @@ export function Dictionary({ entry }: { entry: Entry }) {
   }
 
   return (
-    <DictionaryPanels enrichment={e} word={entry.word} aside={refresh} onCorpus={(corpus) => void patchEnrichment(entry.id, { corpus })} />
+    <DictionaryPanels
+      enrichment={e}
+      word={entry.word}
+      aside={refresh}
+      part={part}
+      onCorpus={(corpus) => void patchEnrichment(entry.id, { corpus })}
+    />
   )
 }
 
 /**
- * Definitions, the word map, related words and origin: shared by word pages and look-ups.
- * `part` splits them over two columns: 'main' (definitions, word map) and 'extra' (the rest).
+ * Definitions, words used together, real sentences, related words and origin: shared by
+ * word pages and look-ups. `part` picks a slice: 'main' (the first three), 'related',
+ * 'origin', or 'side' (related + origin).
  */
 export function DictionaryPanels({
   enrichment: e,
@@ -74,10 +86,12 @@ export function DictionaryPanels({
   enrichment: Enrichment
   word: string
   aside?: React.ReactNode
-  part?: 'main' | 'extra'
+  /** undefined: everything; 'main': definitions, words used together, real sentences */
+  part?: DictionaryPart | 'side'
   /** keeps corpus data once it is fetched (word pages store it in the entry) */
   onCorpus?: (corpus: CorpusData) => void
 }) {
+  const show = (p: DictionaryPart) => !part || part === p || (part === 'side' && p !== 'main')
   const corpus = useCorpus(word, e.corpus, onCorpus)
   const rich = corpus.status === 'ready' ? corpus.data : undefined
   // Dictionary synonyms stay "Similar"; the corpus thesaurus is words *used* like this one
@@ -87,13 +101,13 @@ export function DictionaryPanels({
   const compareWith = [...e.synonyms.filter((w) => !w.includes(' ')), ...(rich?.similar ?? [])].slice(0, 3)
   return (
     <>
-      {part !== 'extra' && (
+      {show('main') && (
         <Panel title="Definitions" aside={aside}>
           <Definitions enrichment={e} word={word} />
         </Panel>
       )}
 
-      {part !== 'extra' &&
+      {show('main') &&
         (rich?.groups.length ? (
           <Panel title="Used together with" delay={0.05}>
             <CorpusCollocations groups={rich.groups} />
@@ -106,17 +120,18 @@ export function DictionaryPanels({
           hasCollocations(e.collocations) && (
             <Panel title="Used together with" delay={0.05}>
               <Collocations word={word} collocations={e.collocations} />
+              <CorpusHint state={corpus} />
             </Panel>
           )
         ))}
 
-      {part !== 'extra' && rich && rich.examples.length > 0 && (
+      {show('main') && rich && rich.examples.length > 0 && (
         <Panel title="In real sentences" delay={0.08}>
           <RealExamples examples={rich.examples} />
         </Panel>
       )}
 
-      {part !== 'main' && (e.synonyms.length > 0 || e.antonyms.length > 0 || usedLike.length > 0) && (
+      {show('related') && (e.synonyms.length > 0 || e.antonyms.length > 0 || usedLike.length > 0) && (
         <Panel title="Related words" delay={0.1}>
           {e.synonyms.length > 0 && <WordChips label="Similar" words={e.synonyms} />}
           {usedLike.length > 0 && <WordChips label="Used like" words={usedLike} />}
@@ -125,7 +140,7 @@ export function DictionaryPanels({
         </Panel>
       )}
 
-      {part !== 'main' && e.origin && (
+      {show('origin') && e.origin && (
         <Panel title="Origin" delay={0.15}>
           <p className="muted">{e.origin}</p>
         </Panel>

@@ -1779,3 +1779,72 @@ p:hover .hover-only,
 .compare-col .label-sm {
   color: var(--tone);
 }
+
+/* ---------- your translation and sentence, small under the word ---------- */
+
+.mine {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 560px;
+  margin-top: 14px;
+  padding-left: 12px;
+  border-left: 3px solid var(--marker);
+}
+
+.mine-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mine-label {
+  flex: none;
+  min-width: 92px;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.inline-edit.mine-edit {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  padding: 3px 6px;
+  font-size: 15px;
+}
+
+.inline-edit.mine-translation {
+  font-weight: 700;
+}
+
+textarea.inline-edit.mine-edit {
+  min-height: 0;
+  field-sizing: content;
+  resize: none;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.mine-row .speak-btn {
+  flex: none;
+  align-self: center;
+}
+
+.corpus-hint {
+  margin: 14px 0 0;
+  padding: 8px 12px;
+  border: 1.5px dashed var(--line-soft);
+  border-radius: var(--r-m);
+  color: var(--ink-2);
+}
+
+.corpus-hint a {
+  color: var(--ink);
+  font-weight: 700;
+}

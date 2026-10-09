@@ -16,6 +16,8 @@ export const CORPUS = 'preloaded/ententen21_tt31'
 /** Cache layout version: bump to refetch everything after changing what is stored. */
 const CACHE = 'cache/ske/v1'
 export const DAILY_BUDGET = 1500
+// No frequency rank ("which thousand"): word lists stop at 1,000 items on this account and
+// take ~40 s on this corpus (tested 9 Oct 2026), so K levels stay with the BNC/COCA lists.
 const TIMEOUT_MS = 25_000
 /** Collocates kept per grammatical relation (the app shows fewer). */
 const PER_RELATION = 10
@@ -172,7 +174,7 @@ async function fetchWord(env: SketchEnv, lemma: string, pos: string, fetcher: Fe
   const [ws, conc, thes] = await Promise.allSettled([
     phrase
       ? Promise.resolve(undefined)
-      : ske<{ Items?: WsketchItem[]; lpos?: string; relfreq?: number }>(
+      : ske<{ Items?: WsketchItem[]; lpos?: string; relfreq?: number; freq?: number }>(
           env,
           'wsketch',
           { lemma, ...lpos, maxitems: String(PER_RELATION), structured: '0' },
@@ -230,7 +232,7 @@ async function cached<T>(env: SketchEnv, key: string, requests: number, load: ()
 const safeKey = (s: string) => encodeURIComponent(s)
 
 export function getWord(env: SketchEnv, lemma: string, pos: string, fetcher: Fetcher = fetch): Promise<SketchWord> {
-  return cached(env, `${CACHE}/word/${pos || 'any'}/${safeKey(lemma)}.json`, lemma.includes(' ') ? 1 : 3, () =>
+  return cached(env, `${CACHE}/word2/${pos || 'any'}/${safeKey(lemma)}.json`, lemma.includes(' ') ? 1 : 3, () =>
     fetchWord(env, lemma, pos, fetcher),
   )
 }

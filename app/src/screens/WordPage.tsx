@@ -9,12 +9,47 @@ import { alive, type Entry } from '../data/model'
 import { parseWordParam, wordPath } from '../data/paths'
 import { useEntryAt } from '../hooks'
 import { Dictionary } from './word/DictionaryPanels'
-import { BackLink, Panel } from './word/Panel'
+import { BackLink } from './word/Panel'
 import { Encounters, formatDate, Notes, type Update } from './word/PersonalPanels'
 import { VideosDrawer, WordHeading } from './word/WordHeading'
 
 // A word in the notebook. The parts live in ./word/: the heading, the dictionary panels
 // (shared with look-ups in LookUpPage) and the personal panels.
+
+/**
+ * Your translation and your own sentence: small lines under the word, written straight
+ * onto the page. They stay at hand without pushing the dictionary down.
+ */
+function MyWords({ entry, update }: { entry: Entry; update: Update }) {
+  return (
+    <div className="mine">
+      <label className="mine-row">
+        <span className="mine-label">Translation</span>
+        <EditableText
+          label="My translation"
+          lang="tr"
+          className="mine-edit mine-translation"
+          value={entry.translation}
+          placeholder="Write it in your own words…"
+          onSave={(v) => update((x) => ({ ...x, translation: v }))}
+        />
+      </label>
+      <div className="mine-row">
+        <span className="mine-label">My sentence</span>
+        <EditableText
+          label="My sentence"
+          lang="en"
+          multiline
+          className="mine-edit word-font"
+          value={entry.ownSentence}
+          placeholder="Try it in a sentence from your own life."
+          onSave={(v) => update((x) => ({ ...x, ownSentence: v }))}
+        />
+        {entry.ownSentence && <SpeakButton text={entry.ownSentence} label="Read my sentence aloud" />}
+      </div>
+    </div>
+  )
+}
 
 export function WordPage() {
   const { param } = useParams()
@@ -66,6 +101,7 @@ function WordPageContent({ entry }: { entry: Entry }) {
       <header className="word-hero">
         <div className="word-hero-main">
           <WordHeading word={entry.word} enrichment={e} videosOpen={videosOpen} onToggleVideos={() => setVideosOpen((o) => !o)} />
+          <MyWords entry={entry} update={update} />
         </div>
         <div className="word-hero-side">
           <span className="label-sm">How well do you know it?</span>
@@ -78,34 +114,14 @@ function WordPageContent({ entry }: { entry: Entry }) {
 
       <div className="word-columns">
         <div className="word-col">
-          <Dictionary entry={entry} />
+          <Dictionary entry={entry} part="main" />
         </div>
 
         <div className="word-col">
-          <Panel title="My translation" delay={0.05}>
-            <EditableText
-              label="My translation"
-              lang="tr"
-              className="edit-lg"
-              value={entry.translation}
-              placeholder="Write it in your own words…"
-              onSave={(v) => update((x) => ({ ...x, translation: v }))}
-            />
-          </Panel>
-
-          <Panel title="My sentence" delay={0.1} aside={entry.ownSentence && <SpeakButton text={entry.ownSentence} label="Read my sentence aloud" />}>
-            <EditableText
-              label="My sentence"
-              lang="en"
-              multiline
-              value={entry.ownSentence}
-              placeholder="Try using it in a sentence from your own life."
-              onSave={(v) => update((x) => ({ ...x, ownSentence: v }))}
-            />
-          </Panel>
-
+          <Dictionary entry={entry} part="related" />
           <Encounters entry={entry} update={update} />
           <Notes notes={alive(entry.notes)} update={update} />
+          <Dictionary entry={entry} part="origin" />
 
           <button className="btn btn-quiet btn-danger remove-btn" onClick={remove}>
             <Trash2 size={15} /> Remove from notebook

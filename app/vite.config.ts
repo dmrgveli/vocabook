@@ -26,8 +26,23 @@ function cspMeta(): Plugin {
   }
 }
 
-export default defineConfig({
+// Each build gets an id. version.json carries it next to the app, so a tab left open on a
+// phone can notice that a newer build was published (src/update.ts).
+const BUILD_ID = process.env.GITHUB_SHA?.slice(0, 12) ?? String(Date.now())
+
+function versionFile(): Plugin {
+  return {
+    name: 'version-file',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) })
+    },
+  }
+}
+
+export default defineConfig(({ command }) => ({
   // GitHub Actions sets BASE_PATH=/<repo-name>/.
   base: process.env.BASE_PATH ?? '/',
-  plugins: [react(), cspMeta()],
-})
+  plugins: [react(), cspMeta(), versionFile()],
+  define: { __BUILD_ID__: JSON.stringify(command === 'build' ? BUILD_ID : 'dev') },
+}))

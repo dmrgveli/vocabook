@@ -113,7 +113,7 @@ export function LookUpPage() {
           )}
         </div>
         <div className="word-col">
-          {state.status === 'ready' && <DictionaryPanels enrichment={state.enrichment} word={word} part="extra" />}
+          {state.status === 'ready' && <DictionaryPanels enrichment={state.enrichment} word={word} part="side" />}
         </div>
       </div>
     </div>

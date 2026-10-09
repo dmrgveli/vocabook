@@ -76,6 +76,8 @@ export interface CorpusData {
   fetchedAt: Timestamp
   /** part of speech the corpus used: -n, -v, -j, -a… */
   pos: string
+  /** occurrences per million words in the corpus */
+  perMillion?: number
   groups: CollocationGroup[]
   examples: CorpusExample[]
   similar: string[]

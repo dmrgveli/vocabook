@@ -16,11 +16,13 @@ import { startBackfill } from './api/enrich'
 import { initAuth } from './sync/auth'
 import { startSync } from './sync/engine'
 import { initTheme } from './theme'
+import { startUpdateCheck } from './update'
 
 initTheme()
 startSync()
 void initAuth()
 startBackfill()
+startUpdateCheck()
 
 // Hash router: GitHub Pages returns 404 for sub-paths.
 createRoot(document.getElementById('root')!).render(
