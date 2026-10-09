@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { ChevronUp, Play } from 'lucide-react'
+import { ChevronUp, Orbit, Play } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import { KBadge, RecordingButton, SpeakButton } from '../../components/ui'
 import { YouGlishPanel } from '../../components/YouGlishPanel'
 import type { Enrichment } from '../../data/model'
+import { poolPath } from '../../data/paths'
 
 /** The big word, its stickers and the pronunciation buttons. */
 export function WordHeading({
@@ -39,6 +41,11 @@ export function WordHeading({
             {videosOpen ? <ChevronUp size={15} strokeWidth={2.5} /> : <Play size={14} strokeWidth={2.5} fill="currentColor" />}
             {videosOpen ? 'Hide videos' : 'Hear it used'}
           </button>
+          {!word.includes(' ') && (
+            <Link to={poolPath(word)} className="pool-badge" title="See the words around it">
+              <Orbit size={14} strokeWidth={2.5} /> Word pool
+            </Link>
+          )}
         </motion.span>
       </motion.div>
       <div className="row word-meta">

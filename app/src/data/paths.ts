@@ -23,3 +23,8 @@ export function parseWordParam(param: string): { id: string } | { word: string }
   if (ENTRY_ID.test(param)) return { id: param }
   return { word: normalizeWord(param.replace(/\+/g, ' ')) }
 }
+
+/** The word pool, optionally around a word: #/pool, #/pool/thrive. */
+export function poolPath(word?: string): string {
+  return word ? `/pool/${encodeWord(word)}` : '/pool'
+}

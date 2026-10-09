@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { BookOpen, History, Plus, Search } from 'lucide-react'
+import { BookOpen, History, Orbit, Plus, Search } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
@@ -63,6 +63,7 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
       <nav className="nav">
         <NavItem to="/" icon={<BookOpen size={17} />} label="Notebook" count={entries.length} onClick={onNavigate} />
         <NavItem to="/flashback" icon={<History size={17} />} label="Flashback" onClick={onNavigate} />
+        <NavItem to="/pool" end={false} icon={<Orbit size={17} />} label="Word pool" onClick={onNavigate} />
         <button
           className="nav-item nav-btn"
           onClick={() => {
@@ -121,9 +122,9 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
   )
 }
 
-function NavItem({ to, icon, label, count, onClick }: { to: string; icon: ReactNode; label: string; count?: number; onClick?: () => void }) {
+function NavItem({ to, end = true, icon, label, count, onClick }: { to: string; end?: boolean; icon: ReactNode; label: string; count?: number; onClick?: () => void }) {
   return (
-    <NavLink to={to} end className="nav-item" onClick={onClick}>
+    <NavLink to={to} end={end} className="nav-item" onClick={onClick}>
       {({ isActive }) => (
         <>
           {isActive && <motion.span layoutId="nav-active" className="nav-active" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}

@@ -212,3 +212,9 @@ export async function synonyms(word: string): Promise<{ synonyms: string[]; anto
   ])
   return { synonyms: syn.map((c) => c.word), antonyms: ant.map((c) => c.word) }
 }
+
+/** Words close in meaning ("means like"), best first; for the word pool. Rare and odd entries are left out. */
+export async function meansLike(word: string): Promise<string[]> {
+  const words = await related('ml', word, (w) => !w.includes(' '), 30, MIN_RELATED_FREQUENCY)
+  return words.map((c) => c.word)
+}

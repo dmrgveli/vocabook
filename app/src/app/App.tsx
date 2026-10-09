@@ -19,6 +19,7 @@ import { Settings } from '../screens/Settings'
 import { Flashback } from '../screens/Flashback'
 import { LookUpPage } from '../screens/LookUpPage'
 import { WordPage } from '../screens/WordPage'
+import { WordPool } from '../screens/WordPool'
 import { useAppState } from './state'
 
 export function App() {
@@ -67,8 +68,8 @@ export function App() {
           {entries && (
             <AnimatePresence mode="wait">
               <motion.div
-                // Settings sections switch inside the page, without a page transition.
-                key={location.pathname.startsWith('/settings') ? '/settings' : location.pathname}
+                // Settings sections and word pool words switch inside the page, without a page transition.
+                key={location.pathname.startsWith('/settings') ? '/settings' : location.pathname.startsWith('/pool') ? '/pool' : location.pathname}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
@@ -82,6 +83,7 @@ export function App() {
                     <Route path="/word/:param" element={<WordPage />} />
                     <Route path="/look/:param" element={<LookUpPage />} />
                     <Route path="/flashback" element={<Flashback entries={entries} />} />
+                    <Route path="/pool/:param?" element={<WordPool />} />
                     <Route path="/settings/:section?" element={<Settings entries={entries} />} />
                     <Route path="*" element={<Notebook entries={entries} />} />
                   </Routes>
