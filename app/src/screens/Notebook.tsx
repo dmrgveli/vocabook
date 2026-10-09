@@ -125,6 +125,17 @@ export function Notebook({ entries }: { entries: Entry[] }) {
     [entries, filters, view, levelsReady],
   )
   const shown = pages.reduce((n, p) => n + p.entries.length, 0)
+  // Ungrouped A–Z on the ruled page: the margin becomes an index with the first letters.
+  const alphabetical = view.group === 'none' && (view.sort === 'az' || view.sort === 'za')
+  const ruledGroups = useMemo(() => {
+    if (!alphabetical) return pages
+    const byLetter = new Map<string, Entry[]>()
+    for (const e of pages.flatMap((p) => p.entries)) {
+      const letter = /[a-z]/i.test(e.word[0]) ? e.word[0].toUpperCase() : '#'
+      byLetter.set(letter, [...(byLetter.get(letter) ?? []), e])
+    }
+    return [...byLetter].map(([key, entries]) => ({ key, entries }))
+  }, [pages, alphabetical])
   const thisWeek = useMemo(() => entries.filter((e) => Date.parse(e.createdAt) > Date.now() - 7 * 864e5).length, [entries])
 
   // "/" focuses search, as in most desktop apps.
@@ -246,9 +257,10 @@ export function Notebook({ entries }: { entries: Entry[] }) {
         <p className="muted no-results">No words in your notebook match.</p>
       ) : view.layout !== 'cards' ? (
         <RuledPage
-          groups={pages}
+          groups={ruledGroups}
           detail={view.layout === 'page' ? 'full' : 'brief'}
-          margin={view.group === 'none' ? undefined : (key) => marginLabel(view.group, key)}
+          margin={view.group !== 'none' ? (key) => marginLabel(view.group, key) : alphabetical ? (key) => ({ title: key }) : undefined}
+          marginStyle={view.group !== 'none' ? 'labels' : alphabetical ? 'letters' : 'plain'}
           preview={preview}
         />
       ) : (

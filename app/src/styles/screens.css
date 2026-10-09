@@ -2131,3 +2131,21 @@ textarea.inline-edit.mine-edit {
 .credits-body .credits {
   margin: 0;
 }
+
+/* ungrouped notebook: a narrow margin; A–Z puts the first letter in it, like an index */
+.sheet[data-margin='plain'],
+.sheet[data-margin='letters'] {
+  --margin-w: 56px;
+}
+
+.sheet[data-margin='letters'] .sheet-margin {
+  align-items: center;
+  padding: 10px 6px;
+}
+
+.sheet[data-margin='letters'] .sheet-margin-title {
+  font-family: var(--font-word);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+}

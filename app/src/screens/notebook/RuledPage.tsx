@@ -28,14 +28,22 @@ interface Props {
   detail: Detail;
   /** what the margin says for a group, or nothing when the notebook isn't grouped */
   margin?: (key: string) => { title: string; sub?: string };
+  /** labels: day, source…; letters: an index letter (A–Z without groups); plain: a narrow empty margin */
+  marginStyle?: "labels" | "letters" | "plain";
   preview: ReturnType<typeof useWordPreview>;
 }
 
-export function RuledPage({ groups, detail, margin, preview }: Props) {
+export function RuledPage({
+  groups,
+  detail,
+  margin,
+  marginStyle = margin ? "labels" : "plain",
+  preview,
+}: Props) {
   return (
     <div
       className={`sheet sheet-${detail}`}
-      data-margin={margin ? "labels" : "plain"}
+      data-margin={marginStyle}
     >
       {groups.map(({ key, entries }) => {
         const label = margin?.(key);
@@ -48,9 +56,11 @@ export function RuledPage({ groups, detail, margin, preview }: Props) {
                   {label.sub && (
                     <span className="sheet-margin-sub">{label.sub}</span>
                   )}
+                  {marginStyle === "labels" && (
                   <span className="sheet-margin-count">
                     {entries.length} {entries.length === 1 ? "word" : "words"}
                   </span>
+                  )}
                 </>
               )}
             </h2>
