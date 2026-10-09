@@ -1,12 +1,11 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { BellRing, Check, Clapperboard, Cloud, Database, ExternalLink, Info, Monitor, Moon, Palette, RefreshCw, Sun, Volume2 } from 'lucide-react'
+import { BellRing, Check, ChevronDown, Clapperboard, Cloud, Database, ExternalLink, Info, Monitor, Moon, Palette, RefreshCw, Sun, Volume2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
 import { setWordSource, useWordSource, type WordSource } from '../api/corpus'
 import { enrichEntry } from '../api/enrich'
 import { useAppState } from '../app/state'
 import { AccountCard } from '../components/AccountCard'
-import { useAuth } from '../sync/auth'
 import { isEnrichmentCurrent, type Entry } from '../data/model'
 import { REMINDER_MIN_WORDS, setRemindersEnabled, useRemindersEnabled } from '../data/reminders'
 import { canSpeak, setSpeechPrefs, speak, useEnglishVoices, useSpeechPrefs } from '../speech'
@@ -347,8 +346,6 @@ function DataSettings({ entries }: { entries: Entry[] }) {
 /** Rich word data from a large corpus, or the classic data (also the way back if the rich one disappoints). */
 function WordSourceField() {
   const value = useWordSource()
-  const auth = useAuth()
-  const signedIn = auth.status === 'signed-in' || auth.status === 'expired'
   return (
     <Field
       title="Word details"
@@ -356,7 +353,6 @@ function WordSourceField() {
         <>
           Rich: words used together grouped by grammar, real example sentences and comparisons with similar words, from a very large
           collection of real English. Classic: the earlier, simpler word data.
-          {value === 'rich' && !signedIn && ' Rich details need sign-in; until then you see the classic ones.'}
         </>
       }
     >
@@ -453,32 +449,42 @@ function About() {
         <ExternalLink size={14} className="faint" />
       </a>
 
-      {CREDITS.map((g) => (
-        <section key={g.group} className="credits">
-          <h3 className="label-sm">{g.group}</h3>
-          <ul>
-            {g.items.map((c) => (
-              <li key={c.name}>
-                <a href={c.href} target="_blank" rel="noreferrer">
-                  {c.name} <ExternalLink size={11} />
-                </a>
-                <span className="faint small">
-                  {c.what}
-                  {c.license && <span className="license">{c.license}</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      {/* One quiet box instead of a long list: open it to see every source and licence. */}
+      <details className="credits-box">
+        <summary>
+          <span>Sources & credits</span>
+          <span className="faint small">{CREDITS.reduce((n, g) => n + g.items.length, 0)} sources, fonts and icons</span>
+          <ChevronDown size={16} className="credits-chevron" />
+        </summary>
+        <div className="credits-body">
+        {CREDITS.map((g) => (
+          <section key={g.group} className="credits">
+            <h3 className="label-sm">{g.group}</h3>
+            <ul>
+              {g.items.map((c) => (
+                <li key={c.name}>
+                  <a href={c.href} target="_blank" rel="noreferrer">
+                    {c.name} <ExternalLink size={11} />
+                  </a>
+                  <span className="faint small">
+                    {c.what}
+                    {c.license && <span className="license">{c.license}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
 
-      <p className="faint small">
-        Open source on{' '}
-        <a href={SOURCE_CODE} target="_blank" rel="noreferrer">
-          GitHub
-        </a>
-        . A word's level is the thousand its word family falls in on the BNC/COCA lists; 25K+ means it is not on them.
-      </p>
+        <p className="faint small">
+          Open source on{' '}
+          <a href={SOURCE_CODE} target="_blank" rel="noreferrer">
+            GitHub
+          </a>
+          . A word's level is the thousand its word family falls in on the BNC/COCA lists; 25K+ means it is not on them.
+        </p>
+        </div>
+      </details>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { switchProfile } from '../data/db'
 import { resolvedTheme } from '../theme'
 
 // Google sign-in with Google Identity Services, then a session from our Worker.
@@ -172,6 +173,8 @@ function onCredential(response: { credential?: string }) {
   token = { value: response.credential, expires: claims.exp * 1000 }
   const user: User = { sub: claims.sub, email: claims.email, name: claims.name, picture: claims.picture }
   writeHint(user)
+  // this account's own notebook on the device (data/db.ts)
+  switchProfile(user.sub)
   setState({ status: 'signed-in', user })
   waiters.forEach((w) => w(token!.value))
   waiters = []
@@ -287,6 +290,8 @@ export function signOut() {
   token = undefined
   saveSession(undefined)
   writeHint(undefined)
+  // back to the notebook kept without an account
+  switchProfile(null)
   window.google?.accounts.id.disableAutoSelect()
   setState({ status: 'signed-out' })
 }

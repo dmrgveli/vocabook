@@ -270,11 +270,11 @@ describe('word data (Sketch Engine)', () => {
     ).toEqual([{ name: '"%w" and/or ...', rows: [{ w: 'small', a: 9.3, b: 10.1, ca: 50, cb: 90 }] }])
   })
 
-  it('needs sign-in, fetches once and then serves everyone from the cache', async () => {
+  it('needs no sign-in but only answers the app, fetches once and serves everyone from the cache', async () => {
     const { calls, fetcher } = upstream()
-    expect((await get('/v1/word?lemma=commit&pos=-v', env(), fetcher)).status).toBe(401)
-    const token = (await issueSession('123', SECRET)).token
-    const first = await get('/v1/word?lemma=Commit&pos=-v', env(), fetcher, token)
+    const stray = await handle(new Request('https://sync.example/v1/word?lemma=commit'), env(), fetchKeys, fetcher)
+    expect(stray.status).toBe(403)
+    const first = await get('/v1/word?lemma=Commit&pos=-v', env(), fetcher)
     expect(first.status).toBe(200)
     const body = (await first.json()) as { lemma: string; pos: string; perMillion: number; rels: unknown[]; examples: unknown[]; similar: unknown[] }
     expect(body).toMatchObject({ lemma: 'commit', pos: '-v', perMillion: 16.3 })
@@ -283,29 +283,18 @@ describe('word data (Sketch Engine)', () => {
     expect(calls).toHaveLength(3) // wsketch, concordance, thesaurus
     expect(calls.every((u) => u.includes('corpname=preloaded%2Fententen21_tt31'))).toBe(true)
 
-    const other = (await issueSession('456', SECRET)).token
-    expect((await get('/v1/word?lemma=commit&pos=-v', env(), fetcher, other)).status).toBe(200)
+    const signedIn = (await issueSession('456', SECRET)).token
+    expect((await get('/v1/word?lemma=commit&pos=-v', env(), fetcher, signedIn)).status).toBe(200)
     expect(calls).toHaveLength(3) // served from R2
-  })
-
-  it('accepts a maintenance token only while its secret exists, and only for word data', async () => {
-    const { fetcher } = upstream()
-    const secret = 'm'.repeat(40)
-    const withToken = { ...env(), MAINTENANCE_TOKEN: secret } as Env
-    expect((await get('/v1/word?lemma=commit&pos=-v', withToken, fetcher, `mt.${secret}`)).status).toBe(200)
-    expect((await get('/v1/word?lemma=commit&pos=-v', env(), fetcher, `mt.${secret}`)).status).toBe(401)
-    expect((await get('/v1/word?lemma=commit&pos=-v', withToken, fetcher, `mt.${'x'.repeat(40)}`)).status).toBe(401)
-    expect((await get('/v1/notebook', withToken, fetcher, `mt.${secret}`)).status).toBe(401)
   })
 
   it('rejects bad input, answers 503 without a key and stops at the daily budget', async () => {
     const { fetcher } = upstream()
-    const token = (await issueSession('123', SECRET)).token
-    expect((await get('/v1/word?lemma=%3Cscript%3E', env(), fetcher, token)).status).toBe(400)
-    expect((await get('/v1/word?lemma=linger', env(null), fetcher, token)).status).toBe(503)
-    expect((await get('/v1/compare?a=big&b=big', env(), fetcher, token)).status).toBe(400)
+    expect((await get('/v1/word?lemma=%3Cscript%3E', env(), fetcher)).status).toBe(400)
+    expect((await get('/v1/word?lemma=linger', env(null), fetcher)).status).toBe(503)
+    expect((await get('/v1/compare?a=big&b=big', env(), fetcher)).status).toBe(400)
     const today = new Date().toISOString().slice(0, 10)
     await bucket.put(`cache/ske/v1/budget/${today}.json`, JSON.stringify({ n: DAILY_BUDGET }))
-    expect((await get('/v1/word?lemma=linger', env(), fetcher, token)).status).toBe(503)
+    expect((await get('/v1/word?lemma=linger', env(), fetcher)).status).toBe(503)
   })
 })

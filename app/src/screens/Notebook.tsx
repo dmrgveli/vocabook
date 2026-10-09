@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { MOD_KEY } from '../components/Sidebar'
 import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
+import { GuestWordsOffer } from '../components/GuestWords'
 import { useWordPreview, WordPreview } from '../components/WordPreview'
 import { FLASHBACK_MIN_WORDS } from '../data/flashback'
 import { bandOfWord, K_BANDS, levelOf, MAX_LEVEL, useLevelsReady } from '../data/levels'
@@ -139,6 +140,8 @@ export function Notebook({ entries }: { entries: Entry[] }) {
           </Link>
         )}
       </header>
+
+      <GuestWordsOffer />
 
       <div className="toolbar">
         <label className="search">
@@ -317,6 +320,7 @@ function WordCard({ entry }: { entry: Entry }) {
 function EmptyNotebook({ onAdd, onLookUp }: { onAdd: () => void; onLookUp: () => void }) {
   return (
     <div className="page empty-state">
+      <GuestWordsOffer />
       <motion.div
         className="empty-card"
         initial={{ opacity: 0, y: 16, rotate: -2 }}

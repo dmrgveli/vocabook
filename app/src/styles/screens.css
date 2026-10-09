@@ -1836,15 +1836,79 @@ textarea.inline-edit.mine-edit {
   align-self: center;
 }
 
-.corpus-hint {
-  margin: 14px 0 0;
-  padding: 8px 12px;
-  border: 1.5px dashed var(--line-soft);
-  border-radius: var(--r-m);
-  color: var(--ink-2);
+/* ---------- words from before signing in ---------- */
+
+.guest-words {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin-bottom: 14px;
 }
 
-.corpus-hint a {
-  color: var(--ink);
+.guest-words > span:first-of-type {
+  flex: 1;
+  min-width: 220px;
+}
+
+.guest-words-actions {
+  gap: 6px;
+}
+
+/* ---------- About: sources and credits in one box ---------- */
+
+.credits-box {
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-m);
+  background: var(--card);
+  /* good-css: let the height animate to and from auto */
+  interpolate-size: allow-keywords;
+}
+
+.credits-box summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 12px 14px;
   font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.credits-box summary::-webkit-details-marker {
+  display: none;
+}
+
+.credits-chevron {
+  margin-left: auto;
+  transition: rotate 0.25s var(--ease);
+}
+
+.credits-box[open] .credits-chevron {
+  rotate: 180deg;
+}
+
+.credits-box::details-content {
+  block-size: 0;
+  overflow: clip;
+  transition:
+    block-size 0.3s var(--ease),
+    content-visibility 0.3s allow-discrete;
+}
+
+.credits-box[open]::details-content {
+  block-size: auto;
+}
+
+.credits-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 14px 14px;
+  border-top: 1.5px dashed var(--line-soft);
+}
+
+.credits-body .credits {
+  margin: 0;
 }

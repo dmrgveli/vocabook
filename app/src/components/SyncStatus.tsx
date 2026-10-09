@@ -37,8 +37,6 @@ function describe(auth: AuthState, sync: SyncStatus): { icon: ReactNode; text: s
       return { icon: <CloudOff size={13} />, text: 'Offline · will sync later' }
     case 'error':
       return { icon: <AlertTriangle size={13} />, text: 'Sync problem', tone: 'warn' }
-    case 'account-changed':
-      return { icon: <AlertTriangle size={13} />, text: 'Sync paused · action needed', tone: 'warn' }
     default:
       return { icon: <RefreshCw size={13} />, text: 'Connecting…' }
   }

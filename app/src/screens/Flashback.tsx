@@ -288,6 +288,7 @@ function Round({ entries, size, onAgain }: { entries: Entry[]; size: number; onA
 
 const PROMPT_LABEL: Record<FlashCard['kind'], string> = {
   moment: 'Which word fills the gap?',
+  phrase: 'Which word completes the phrase?',
   meaning: 'Which word is it?',
   word: 'What does it mean?',
 }
@@ -306,6 +307,14 @@ function Ask({ card, onChoose }: { card: FlashCard; onChoose: (i: number) => voi
           ) : (
             card.source && <p className="faint small flash-source">You met it in {card.source}</p>
           )}
+        </>
+      )}
+      {card.kind === 'phrase' && (
+        <>
+          <blockquote className="flash-prompt word-font" lang="en">
+            <GapSentence text={card.prompt} />
+          </blockquote>
+          <p className="faint small flash-source">A phrase people often use</p>
         </>
       )}
       {card.kind === 'meaning' && <p className="flash-clue">{card.prompt}</p>}
@@ -411,7 +420,10 @@ function Reveal({ card, entry, answer, onNext }: { card: FlashCard; entry: Entry
 
 function AnswerDetails({ entry, card }: { entry: Entry; card: FlashCard }) {
   const definition = entry.enrichment?.meanings[0]?.definitions[0]?.definition
-  const moment = card.kind === 'moment' && card.sentence ? { sentence: card.sentence, source: card.realExample ? 'real-world English' : card.source } : undefined
+  const moment =
+    (card.kind === 'moment' || card.kind === 'phrase') && card.sentence
+      ? { sentence: card.sentence, source: card.kind === 'phrase' ? 'a common phrase' : card.realExample ? 'real-world English' : card.source }
+      : undefined
   return (
     <>
       <div className="row flash-word-row">

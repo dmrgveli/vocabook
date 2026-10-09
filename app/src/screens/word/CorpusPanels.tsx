@@ -6,15 +6,12 @@ import { SpeakButton } from '../../components/ui'
 import { PeekWord } from '../../components/WordPeek'
 import type { CollocationGroup, CorpusData, CorpusExample } from '../../data/model'
 import { speak } from '../../speech'
-import { Link } from 'react-router-dom'
-import { getAuthState, syncConfigured, useAuth } from '../../sync/auth'
 
 // The word page's corpus layer (api/corpus.ts): collocations grouped by grammar, real
 // example sentences and a comparison with a similar word. When it is switched off, not
-// signed in or unavailable, the page shows the classic word data instead.
+// unavailable, the page shows the classic word data instead.
 
-/** needs-sign-in: Rich is on but this device has no valid sign-in, so the classic data shows */
-export type CorpusState = { status: 'off' | 'loading' | 'failed' | 'needs-sign-in' } | { status: 'ready'; data: CorpusData }
+export type CorpusState = { status: 'off' | 'loading' | 'failed' } | { status: 'ready'; data: CorpusData }
 
 /**
  * The corpus data for a word: what the entry already has, else fetched once (shared per
@@ -22,13 +19,12 @@ export type CorpusState = { status: 'off' | 'loading' | 'failed' | 'needs-sign-i
  */
 export function useCorpus(word: string, existing: CorpusData | undefined, onLoaded?: (data: CorpusData) => void): CorpusState {
   const mode = useWordSource()
-  const auth = useAuth()
   const [state, setState] = useState<CorpusState>(existing ? { status: 'ready', data: existing } : { status: 'off' })
 
   useEffect(() => {
     if (mode !== 'rich') return setState({ status: 'off' })
     if (existing) return setState({ status: 'ready', data: existing })
-    if (!corpusAvailable()) return setState({ status: syncConfigured ? 'needs-sign-in' : 'off' })
+    if (!corpusAvailable()) return setState({ status: 'off' })
     let active = true
     setState({ status: 'loading' })
     fetchCorpusData(word).then(
@@ -37,13 +33,12 @@ export function useCorpus(word: string, existing: CorpusData | undefined, onLoad
         setState({ status: 'ready', data })
         onLoaded?.(data)
       },
-      // A device signed in before sessions existed can be "signed in" but without a token.
-      () => active && setState({ status: getAuthState().status === 'signed-in' ? 'failed' : 'needs-sign-in' }),
+      () => active && setState({ status: 'failed' }),
     )
     return () => {
       active = false
     }
-  }, [word, mode, auth.status, Boolean(existing)])
+  }, [word, mode, Boolean(existing)])
 
   return mode === 'rich' ? state : { status: 'off' }
 }
@@ -203,18 +198,5 @@ export function CorpusSkeleton() {
         </div>
       ))}
     </div>
-  )
-}
-
-/** Under the classic word data when Rich can't load: say why, and how to get it. */
-export function CorpusHint({ state }: { state: CorpusState }) {
-  if (state.status !== 'needs-sign-in') return null
-  const expired = getAuthState().status === 'expired'
-  return (
-    <p className="corpus-hint small">
-      {expired ? 'Your sign-in on this device has ended. ' : ''}
-      Sign in to see these grouped by grammar, with real sentences and comparisons.{' '}
-      <Link to="/settings/account">{expired ? 'Sign in again' : 'Sign in'} →</Link>
-    </p>
   )
 }

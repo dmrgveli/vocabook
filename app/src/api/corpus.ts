@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { CollocationGroup, CorpusData, CorpusExample } from '../data/model'
 import { setWordFrequencies } from '../data/wordFrequency'
-import { getAuthState, getAuthToken, SYNC_BASE } from '../sync/auth'
+import { SYNC_BASE } from '../sync/auth'
 
 // Richer word data from Sketch Engine's English Web corpus (52 billion words), fetched
 // through our Worker (which keeps the API key and caches every word for all users):
@@ -9,8 +9,8 @@ import { getAuthState, getAuthToken, SYNC_BASE } from '../sync/auth'
 //  - good example sentences from real use (GDEX)
 //  - similar words (distributional thesaurus)
 //  - how two similar words are used differently (sketch difference)
-// It needs sign-in. Without it, or switched off in Settings, or when the daily budget is
-// used up, the word page keeps the classic data.
+// No sign-in needed. Switched off in Settings, offline, or when the daily budget is used
+// up, the word page keeps the classic data.
 
 /* ---------- the switch in Settings ---------- */
 
@@ -49,10 +49,9 @@ export function useWordSource(): WordSource {
   )
 }
 
-/** Rich data can be asked for: switched on, sync set up and signed in. */
+/** Rich data can be asked for: switched on and the Worker is set up. */
 export function corpusAvailable(): boolean {
-  const auth = getAuthState().status
-  return source === 'rich' && Boolean(SYNC_BASE) && (auth === 'signed-in' || auth === 'expired')
+  return source === 'rich' && Boolean(SYNC_BASE)
 }
 
 /* ---------- what the Worker sends ---------- */
@@ -277,9 +276,8 @@ export function shapeComparison(raw: RawDiff, max = 7): Comparison {
 export class CorpusUnavailable extends Error {}
 
 async function getFromWorker<T>(path: string): Promise<T> {
-  const token = corpusAvailable() ? await getAuthToken() : undefined
-  if (!token) throw new CorpusUnavailable('Sign in for richer word data')
-  const res = await fetch(`${SYNC_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(40_000) })
+  if (!corpusAvailable()) throw new CorpusUnavailable('Rich word data is switched off')
+  const res = await fetch(`${SYNC_BASE}${path}`, { signal: AbortSignal.timeout(40_000) })
   if (!res.ok) throw new CorpusUnavailable(`Word data unavailable (${res.status})`)
   return res.json() as Promise<T>
 }

@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { applySyncedEntries, listAllEntries, purgeEntries, replaceAllEntries, subscribe } from '../data/db'
-import type { Entry } from '../data/model'
+import { activeProfile, applySyncedEntries, listAllEntries, listGuestEntries, purgeEntries, subscribe } from '../data/db'
 import { getAuthState, getAuthToken, invalidateSession, subscribeAuth, SYNC_BASE, syncConfigured } from './auth'
 import { changedLocally, mergeNotebooks, pruneTombstones, stableStringify, wireNotebook, type SyncedNotebook } from './merge'
 
@@ -10,7 +9,6 @@ import { changedLocally, mergeNotebooks, pruneTombstones, stableStringify, wireN
 // with 412; we fetch again, merge again and retry.
 
 const SYNC_URL = `${SYNC_BASE}/v1/notebook`
-const LAST_ACCOUNT_KEY = 'last-synced-account'
 const DEBOUNCE_MS = 2500
 const INTERVAL_MS = 5 * 60 * 1000
 const MAX_ATTEMPTS = 4
@@ -21,8 +19,6 @@ export type SyncStatus =
   | { state: 'synced'; lastSynced: number }
   | { state: 'offline'; lastSynced?: number }
   | { state: 'error'; message: string; lastSynced?: number }
-  /** This device last synced another account; the user decides what happens to its words. */
-  | { state: 'account-changed'; localWords: number; remoteWords: number }
 
 let status: SyncStatus = { state: 'off' }
 let lastSynced: number | undefined
@@ -60,22 +56,6 @@ async function request<T>(method: string, token: string, init: { body?: string; 
   return res.json() as Promise<T>
 }
 
-function readLastAccount(): string | undefined {
-  try {
-    return localStorage.getItem(LAST_ACCOUNT_KEY) ?? undefined
-  } catch {
-    return undefined
-  }
-}
-
-function writeLastAccount(sub: string) {
-  try {
-    localStorage.setItem(LAST_ACCOUNT_KEY, sub)
-  } catch {
-    // without storage the account check simply runs again next time
-  }
-}
-
 let running: Promise<void> | undefined
 let again = false
 
@@ -98,27 +78,21 @@ export function syncNow(): Promise<void> {
 async function runSync(): Promise<void> {
   const auth = getAuthState()
   if (!syncConfigured || (auth.status !== 'signed-in' && auth.status !== 'expired')) return setStatus({ state: 'off' })
-  if (status.state === 'account-changed') return
+  // Each account has its own notebook on the device (data/db.ts): only sync the one on screen.
+  const profile = activeProfile()
+  if (profile !== auth.user.sub) return
 
   setStatus({ state: 'syncing', lastSynced })
   const token = await getAuthToken()
   if (!token) return setStatus({ state: 'off' })
-  const sub = (getAuthState() as { user?: { sub: string } }).user?.sub
 
   try {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const remote = await request<{ etag: string | null; notebook: SyncedNotebook | null }>('GET', token)
       const remoteEntries = remote.notebook?.version === 1 ? remote.notebook.entries : []
       const local = await listAllEntries()
-
-      const lastAccount = readLastAccount()
-      if (sub && lastAccount && lastAccount !== sub && local.some((e) => !e.deletedAt)) {
-        return setStatus({
-          state: 'account-changed',
-          localWords: local.filter((e) => !e.deletedAt).length,
-          remoteWords: remoteEntries.filter((e) => !e.deletedAt).length,
-        })
-      }
+      // signed out (or switched account) while fetching: leave the other notebook alone
+      if (activeProfile() !== profile) return setStatus({ state: 'off' })
 
       const { entries: merged, purged } = pruneTombstones(mergeNotebooks(local, remoteEntries), Date.now())
       await purgeEntries(purged)
@@ -138,7 +112,6 @@ async function runSync(): Promise<void> {
         }
       }
 
-      if (sub) writeLastAccount(sub)
       lastSynced = Date.now()
       return setStatus({ state: 'synced', lastSynced })
     }
@@ -156,21 +129,18 @@ async function runSync(): Promise<void> {
 }
 
 /**
- * Settles an account switch. 'merge' adds this device's words to the signed-in account;
- * 'replace' discards them on this device and loads that account's notebook instead.
+ * Adds the words written before signing in (the guest notebook) to the signed-in account.
+ * The same word in both is folded into one, keeping both sets of encounters and notes.
+ * The guest notebook keeps its copy, so signing out still shows them.
  */
-export async function resolveAccountChange(choice: 'merge' | 'replace') {
-  const auth = getAuthState()
-  if (auth.status !== 'signed-in') return
-  if (choice === 'replace') {
-    const token = await getAuthToken()
-    if (!token) return
-    const remote = await request<{ notebook: SyncedNotebook | null }>('GET', token)
-    await replaceAllEntries(remote.notebook?.entries ?? ([] as Entry[]))
-  }
-  writeLastAccount(auth.user.sub)
-  setStatus({ state: 'syncing', lastSynced })
+export async function addGuestWords(): Promise<number> {
+  const guest = await listGuestEntries()
+  if (guest.length === 0) return 0
+  const local = await listAllEntries()
+  const merged = mergeNotebooks(local, guest)
+  await applySyncedEntries(changedLocally(local, merged))
   await syncNow()
+  return guest.length
 }
 
 /** Removes the cloud copy; this device keeps its words. */

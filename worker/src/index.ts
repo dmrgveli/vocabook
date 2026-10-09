@@ -9,6 +9,8 @@ import { getDiff, getWord, SketchError, validLemma, validPos } from './sketch'
 //   DELETE /v1/notebook  → removes the stored copy
 //   GET    /v1/word?lemma=thrive&pos=-v        → word sketch, examples, similar words (Sketch Engine, cached)
 //   GET    /v1/compare?a=big&b=large&pos=-j    → how two words are used differently (cached)
+//     (word data needs no sign-in, only a request from the app's own origin; the daily
+//      budget in sketch.ts keeps the account within Sketch Engine's limits)
 //   POST   /v1/session   → { token, expires }: trades a Google ID token (or a session
 //                          that is still valid) for a fresh session token
 // Every request carries a Google ID token or a session token issued here; the storage
@@ -21,12 +23,6 @@ export interface Env {
   SESSION_SECRET: string
   /** Sketch Engine API key (Worker secret). Without it /v1/word answers 503 and the app keeps its older word data. */
   SKETCH_ENGINE_KEY?: string
-  /**
-   * Optional maintenance token (Worker secret, normally unset): lets a developer call the
-   * word data routes without a Google sign-in, to test against the live corpus. Delete
-   * the secret when done and the door is gone.
-   */
-  MAINTENANCE_TOKEN?: string
   /** Comma-separated list of origins allowed to call the API. */
   ALLOWED_ORIGINS: string
 }
@@ -76,17 +72,6 @@ async function readLimited(request: Request): Promise<string> {
   return new TextDecoder().decode(bytes)
 }
 
-/** Compares in constant time; only long tokens count, and only while the secret exists. */
-function isMaintenanceToken(token: string, secret: string | undefined): boolean {
-  if (!secret || secret.length < 32) return false
-  const a = new TextEncoder().encode(token)
-  const b = new TextEncoder().encode(`mt.${secret}`)
-  if (a.byteLength !== b.byteLength) return false
-  let diff = 0
-  for (let i = 0; i < a.byteLength; i++) diff |= a[i] ^ b[i]
-  return diff === 0
-}
-
 /** Word data rarely changes: let the browser keep it for a day. */
 function cachedJson(body: unknown, cors: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
@@ -108,23 +93,10 @@ export async function handle(
   const routes = ['/v1/notebook', '/v1/session', '/v1/word', '/v1/compare']
   if (!routes.includes(pathname)) return json({ error: 'Not found' }, 404, cors)
 
-  const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1]
-  if (!token) return json({ error: 'Sign-in required' }, 401, cors)
-
-  const wordRoute = pathname === '/v1/word' || pathname === '/v1/compare'
-  const maintenance = wordRoute && isMaintenanceToken(token, env.MAINTENANCE_TOKEN)
-  let sub: string
-  try {
-    sub = maintenance ? 'maintenance' : isSessionToken(token)
-      ? (await verifySession(token, env.SESSION_SECRET)).sub
-      : (await verifyGoogleIdToken(token, env.GOOGLE_CLIENT_ID, { fetchKeys })).sub
-  } catch (err) {
-    if (err instanceof AuthError) return json({ error: err.message }, 401, cors)
-    throw err
-  }
-
   if (pathname === '/v1/word' || pathname === '/v1/compare') {
     if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405, cors)
+    // Only the app may ask (CORS keeps other sites out; this keeps out stray clients).
+    if (!cors['Access-Control-Allow-Origin']) return json({ error: 'Forbidden' }, 403, cors)
     const params = new URL(request.url).searchParams
     const pos = validPos(params.get('pos'))
     try {
@@ -141,6 +113,19 @@ export async function handle(
       if (err instanceof SketchError) return json({ error: err.message }, err.status, cors)
       throw err
     }
+  }
+
+  const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1]
+  if (!token) return json({ error: 'Sign-in required' }, 401, cors)
+
+  let sub: string
+  try {
+    sub = isSessionToken(token)
+      ? (await verifySession(token, env.SESSION_SECRET)).sub
+      : (await verifyGoogleIdToken(token, env.GOOGLE_CLIENT_ID, { fetchKeys })).sub
+  } catch (err) {
+    if (err instanceof AuthError) return json({ error: err.message }, 401, cors)
+    throw err
   }
 
   if (pathname === '/v1/session') {

@@ -6,7 +6,7 @@ import { LinkedText, PeekWord } from '../../components/WordPeek'
 import { patchEnrichment } from '../../data/db'
 import { isEnrichmentCurrent, type Collocation, type CorpusData, type Enrichment, type Entry } from '../../data/model'
 import { speak } from '../../speech'
-import { CompareWords, CorpusCollocations, CorpusHint, CorpusSkeleton, RealExamples, useCorpus } from './CorpusPanels'
+import { CompareWords, CorpusCollocations, CorpusSkeleton, RealExamples, useCorpus } from './CorpusPanels'
 import { Panel } from './Panel'
 
 // The automatic layer of a word page: everything that comes from the dictionaries.
@@ -120,7 +120,6 @@ export function DictionaryPanels({
           hasCollocations(e.collocations) && (
             <Panel title="Used together with" delay={0.05}>
               <Collocations word={word} collocations={e.collocations} />
-              <CorpusHint state={corpus} />
             </Panel>
           )
         ))}

@@ -1,7 +1,11 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import { now, normalizeWord, type Enrichment, type Entry } from './model'
 
-// Local-first: every write goes to IndexedDB first. Sync (stage 3) builds on top of this.
+// Local-first: every write goes to IndexedDB first; sync builds on top of this.
+//
+// One notebook per identity on this device. The guest (not signed in) keeps the original
+// database; every Google account gets its own. Signing out shows the guest's words again,
+// signing in shows that account's: synced words never leak into the signed-out notebook.
 
 interface NotebookDB extends DBSchema {
   entries: {
@@ -11,17 +15,95 @@ interface NotebookDB extends DBSchema {
   }
 }
 
-let dbPromise: Promise<IDBPDatabase<NotebookDB>> | undefined
+/** The guest notebook keeps the original name: renaming it would hide existing notebooks. */
+const GUEST_DB = 'vocab-notebook'
+const accountDb = (sub: string) => `vocab-notebook-${sub}`
 
-function db() {
-  // The database keeps its original name: renaming it would hide existing notebooks.
-  dbPromise ??= openDB<NotebookDB>('vocab-notebook', 1, {
+/** Before notebooks were split, the one database held the signed-in account's words. */
+const LEGACY_ACCOUNT_KEY = 'last-synced-account'
+const migratedKey = (sub: string) => `notebook-split:${sub}`
+
+/** Who the device was signed in as when the page loaded (auth.ts restores the same identity). */
+function initialProfile(): string | null {
+  try {
+    const session = JSON.parse(localStorage.getItem('sync-session') ?? 'null') as { user?: { sub?: string }; expires?: number } | null
+    if (session?.user?.sub && (session.expires ?? 0) > Date.now()) return session.user.sub
+    const hint = JSON.parse(localStorage.getItem('signed-in-hint') ?? 'null') as { sub?: string } | null
+    return hint?.sub ?? null
+  } catch {
+    return null
+  }
+}
+
+let profile: string | null = initialProfile()
+let dbPromise: Promise<IDBPDatabase<NotebookDB>> | undefined
+let openName: string | undefined
+
+function open(name: string) {
+  return openDB<NotebookDB>(name, 1, {
     upgrade(db) {
       const store = db.createObjectStore('entries', { keyPath: 'id' })
       store.createIndex('word', 'word')
     },
   })
-  return dbPromise
+}
+
+/**
+ * First time an account's notebook is opened on a device that used the single shared
+ * notebook: if that shared notebook was synced with this account, its words move into
+ * the account's notebook and the guest notebook starts empty.
+ */
+async function migrateLegacy(target: IDBPDatabase<NotebookDB>, sub: string) {
+  try {
+    if (localStorage.getItem(migratedKey(sub))) return
+    if (localStorage.getItem(LEGACY_ACCOUNT_KEY) === sub) {
+      const guest = await open(GUEST_DB)
+      const words = await guest.getAll('entries')
+      const tx = target.transaction('entries', 'readwrite')
+      await Promise.all([...words.map((e) => tx.store.put(e)), tx.done])
+      await guest.clear('entries')
+      guest.close()
+      localStorage.removeItem(LEGACY_ACCOUNT_KEY)
+    }
+    localStorage.setItem(migratedKey(sub), '1')
+  } catch {
+    // storage unavailable: nothing to move
+  }
+}
+
+function db() {
+  const name = profile ? accountDb(profile) : GUEST_DB
+  if (openName !== name) {
+    const previous = dbPromise
+    void previous?.then((d) => d.close())
+    const sub = profile
+    openName = name
+    dbPromise = open(name).then(async (d) => {
+      if (sub) await migrateLegacy(d, sub)
+      return d
+    })
+  }
+  return dbPromise!
+}
+
+/** The account whose notebook is showing; null = the guest's. */
+export function activeProfile(): string | null {
+  return profile
+}
+
+/** Switches the notebook on screen (sign-in, sign-out). Everything reloads from the new one. */
+export function switchProfile(sub: string | null) {
+  if (sub === profile) return
+  profile = sub
+  void db().then(() => notify('sync'))
+}
+
+/** The guest's words, for offering to add them to an account after signing in. */
+export async function listGuestEntries(): Promise<Entry[]> {
+  const guest = profile ? await open(GUEST_DB) : await db()
+  const all = await guest.getAll('entries')
+  if (profile) guest.close()
+  return all.filter((e) => !e.deletedAt)
 }
 
 /** 'local' = the user changed something; 'sync' = changes pulled from the cloud. */

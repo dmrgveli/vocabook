@@ -22,7 +22,7 @@ const OPTIONS = 4
 /** Older practice records on a word are dropped beyond this (the sync schema caps children). */
 export const MAX_PRACTICE_RECORDS = 20
 
-export type CardKind = 'moment' | 'meaning' | 'word'
+export type CardKind = 'moment' | 'phrase' | 'meaning' | 'word'
 
 export interface Choice {
   label: string
@@ -66,8 +66,20 @@ const hideWord = (text: string, word: string) => text.replace(wordPattern(word),
 /** Options and clues longer than this are hard to take in at a glance. */
 export const SHORT_MEANING = 70
 
+/** Region and usage labels a learner doesn't need: "(chiefly US)", "US:", "(intransitive)". */
+const LABELS = /^((\s*\([^)]*\)\s*)|((US|UK|British|American|Australian|Canadian|Irish|Scottish|informal|formal|slang|dated|chiefly [a-z ,]+)[:,]?\s+))+/i
+
 /** "(intransitive) To grow vigorously." → "To grow vigorously." */
-const cleanDefinition = (d: string) => d.replace(/^(\s*\([^)]*\)\s*)+/, '').trim()
+const cleanDefinition = (d: string) => d.replace(LABELS, '').trim()
+
+/**
+ * Definitions that describe the word instead of its meaning ("Alternative form of …",
+ * "Plural of …", "US definition of …") or an old sense ("Obsolete …") make poor options.
+ */
+const NOT_A_MEANING =
+  /\b(alternative (form|spelling)|obsolete|archaic|misspelling|abbreviation|initialism|acronym|plural of|past (tense|participle)|present participle|third-person|form of|definition|synonym of|eye dialect|nonstandard)\b/i
+
+export const usableDefinition = (d: string) => d.length >= 8 && !NOT_A_MEANING.test(d) && !/\b[A-Z]{2,}\b/.test(d)
 
 /**
  * The simplest definition: the shortest of the first few senses, looking at the first
@@ -80,7 +92,7 @@ export function shortDefinition(entry: Entry): string | undefined {
     const shortest = m.definitions
       .slice(0, 3)
       .map((d) => cleanDefinition(d.definition))
-      .filter((d) => d.length >= 8 && !wordPattern(entry.word).test(d))
+      .filter((d) => usableDefinition(d) && !wordPattern(entry.word).test(d))
       .sort((a, b) => a.length - b.length)[0]
     if (shortest && shortest.length <= SHORT_MEANING) return shortest
   }
@@ -116,7 +128,7 @@ export function trimmedDefinition(entry: Entry): string | undefined {
   const first = (entry.enrichment?.meanings ?? [])
     .flatMap((m) => m.definitions)
     .map((d) => cleanDefinition(d.definition))
-    .find((d) => d.length >= 8 && !wordPattern(entry.word).test(d))
+    .find((d) => usableDefinition(d) && !wordPattern(entry.word).test(d))
   if (!first) return undefined
   const clause = first.split(/;\s/)[0]
   if (clause.length <= SHORT_MEANING) return clause.length >= 20 || clause === first ? clause : `${clause}…`
@@ -239,6 +251,11 @@ export function cardFor(
         .filter((sentence) => withGap(sentence, entry.word))
         .map((sentence) => ({ prompt: withGap(sentence, entry.word)!, sentence, realExample: true }))
   const moments: { prompt: string; source?: string; sentence: string; realExample?: boolean }[] = own.length ? own : real
+  // A common phrase from the corpus with the word left out: "make an informed _____".
+  const phrases = (entry.enrichment?.corpus?.groups ?? [])
+    .flatMap((g) => g.items.map((i) => i.phrase))
+    .filter((p) => p.split(' ').length >= 2 && p.length <= 40 && withGap(p, entry.word))
+    .map((p) => ({ prompt: withGap(p, entry.word)!, sentence: p }))
   const clue = clueFor(entry, commonness)
   const firstSource = [...metEncounters(entry)].sort((a, b) => a.date.localeCompare(b.date))[0]?.source
   const meanings = meaningChoices(entry, all, random, commonness)
@@ -248,6 +265,10 @@ export function cardFor(
   if (moments.length) {
     kinds.push('moment')
     options.push(() => ({ entry, kind: 'moment', ...moments[Math.floor(random() * moments.length)], choices: wordChoices() }))
+  }
+  if (phrases.length) {
+    kinds.push('phrase')
+    options.push(() => ({ entry, kind: 'phrase', ...phrases[Math.floor(random() * Math.min(phrases.length, 4))], choices: wordChoices() }))
   }
   if (clue) {
     kinds.push('meaning')
@@ -265,7 +286,7 @@ export function cardFor(
 
 /** A round: one card per word, the kinds taking turns where a word allows it. */
 export function buildRound(entries: Entry[], size: number, random: Random = Math.random): FlashCard[] {
-  const order: CardKind[] = ['moment', 'meaning', 'word']
+  const order: CardKind[] = ['moment', 'phrase', 'meaning', 'word']
   const start = Math.floor(random() * order.length)
   return pickFlashbackWords(entries, size, random).map((e, i) => cardFor(e, entries, order[(start + i) % order.length], random))
 }

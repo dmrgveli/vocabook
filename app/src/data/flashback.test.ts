@@ -154,6 +154,48 @@ describe('simple meanings', () => {
   })
 })
 
+describe('cleaner options and phrase cards', () => {
+  it('drops labels and definitions that describe the word instead of its meaning', () => {
+    const e = (defs: string[]): Entry => ({
+      ...entry('truck'),
+      enrichment: {
+        fetchedAt: '',
+        definitionsFrom: 'datamuse',
+        meanings: [{ partOfSpeech: 'noun', definitions: defs.map((definition) => ({ definition })) }],
+        synonyms: [],
+        antonyms: [],
+        collocations: { before: [], after: [] },
+      },
+    })
+    expect(shortDefinition(e(['(chiefly US, Canada) A heavy goods vehicle.']))).toBe('A heavy goods vehicle.')
+    expect(shortDefinition(e(['US definition of a lorry.', 'Alternative form of lorry.', 'A large vehicle for goods.']))).toBe('A large vehicle for goods.')
+  })
+
+  it('asks for the missing word in a common phrase from the corpus', () => {
+    const decision: Entry = {
+      ...entry('decision'),
+      enrichment: {
+        fetchedAt: '',
+        definitionsFrom: 'datamuse',
+        meanings: [],
+        synonyms: [],
+        antonyms: [],
+        collocations: { before: [], after: [] },
+        corpus: {
+          fetchedAt: '',
+          pos: '-n',
+          groups: [{ id: 'verbs-before', label: 'Verbs before', items: [{ word: 'make', phrase: 'make informed decisions' }] }],
+          examples: [],
+          similar: [],
+        },
+      },
+    }
+    const card = cardFor(decision, notebook, 'phrase', seeded(2))
+    expect(card).toMatchObject({ kind: 'phrase', prompt: `make informed ${GAP}`, sentence: 'make informed decisions' })
+    expect(card.choices.filter((c) => c.correct)).toEqual([{ label: 'decision', correct: true }])
+  })
+})
+
 describe('picking words', () => {
   it('prefers words that were in fewer rounds, at random', () => {
     const fresh = entry('fresh')
