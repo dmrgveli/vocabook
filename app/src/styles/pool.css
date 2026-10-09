@@ -133,6 +133,8 @@
 
 .pool-stage {
   position: relative;
+  /* the engine gives pills z-indexes by depth (hundreds); keep them inside the stage, under menus and dialogs */
+  isolation: isolate;
   height: clamp(440px, 72vh, 640px);
   overflow: hidden;
   border: 1.5px solid var(--line);
