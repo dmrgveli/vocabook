@@ -190,7 +190,6 @@ function BriefLine({ entry }: { entry: Entry }) {
         to={wordPath(entry.word)}
         className="word-font line-word-link card-link truncate"
         lang="en"
-        data-preview-anchor
       >
         {entry.word}
       </Link>

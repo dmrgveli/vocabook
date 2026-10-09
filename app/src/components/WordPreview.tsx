@@ -6,25 +6,30 @@ import { entrySource, lineSentence, topPhrases } from '../data/notebook'
 import { KBadge, MasteryMeter, toneClass } from './ui'
 
 // Desktop only: resting the pointer on a word in the one-line-per-word notebook opens a card
-// with its details next to the word. It is a preview, not a control: the line itself opens
-// the page. A row can mark the element to sit next to with data-preview-anchor.
+// with its details right at the pointer, and the card follows it along the line. It is a
+// preview, not a control: the line itself opens the page.
 
 const HOVER_QUERY = '(hover: hover) and (min-width: 900px)'
 const OPEN_DELAY_MS = 320
 const WIDTH = 320
 const GAP = 12
+/** how far the card sits from the pointer, so it never covers what is under it */
+const OFFSET = 18
 
 const dateFormat = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
 export interface PreviewTarget {
   entry: Entry
-  rect: DOMRect
+  /** pointer position */
+  x: number
+  y: number
 }
 
 /** Hover handlers for the rows, and the target currently previewed. */
 export function useWordPreview() {
   const [target, setTarget] = useState<PreviewTarget>()
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const pointer = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
     if (!target) return
@@ -38,9 +43,13 @@ export function useWordPreview() {
   const handlers = (entry: Entry) => ({
     onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
       if (!matchMedia(HOVER_QUERY).matches) return
-      const el = e.currentTarget.querySelector('[data-preview-anchor]') ?? e.currentTarget
+      pointer.current = { x: e.clientX, y: e.clientY }
       clearTimeout(timer.current)
-      timer.current = setTimeout(() => setTarget({ entry, rect: el.getBoundingClientRect() }), OPEN_DELAY_MS)
+      timer.current = setTimeout(() => setTarget({ entry, ...pointer.current }), OPEN_DELAY_MS)
+    },
+    onMouseMove: (e: React.MouseEvent<HTMLElement>) => {
+      pointer.current = { x: e.clientX, y: e.clientY }
+      setTarget((t) => (t && t.entry.id === entry.id ? { entry, ...pointer.current } : t))
     },
     onMouseLeave: () => {
       clearTimeout(timer.current)
@@ -55,17 +64,16 @@ export function WordPreview({ target }: { target?: PreviewTarget }) {
   return createPortal(<PreviewCard key={target.entry.id} target={target} />, document.body)
 }
 
-function PreviewCard({ target: { entry, rect } }: { target: PreviewTarget }) {
+function PreviewCard({ target: { entry, x, y } }: { target: PreviewTarget }) {
   const ref = useRef<HTMLDivElement>(null)
-  // to the right of the row when there is room, else to its left
-  const left = rect.right + GAP + WIDTH < innerWidth ? rect.right + GAP : Math.max(GAP, rect.left - GAP - WIDTH)
-  const [top, setTop] = useState(rect.top)
+  // below and to the right of the pointer; to its left or above it where the screen ends
+  const left = x + OFFSET + WIDTH + GAP < innerWidth ? x + OFFSET : Math.max(GAP, x - OFFSET - WIDTH)
+  const [top, setTop] = useState(y + OFFSET)
 
-  // keep the whole card on screen
   useLayoutEffect(() => {
     const h = ref.current?.offsetHeight ?? 0
-    setTop(Math.max(GAP, Math.min(rect.top - 8, innerHeight - h - GAP)))
-  }, [rect])
+    setTop(y + OFFSET + h + GAP < innerHeight ? y + OFFSET : Math.max(GAP, y - OFFSET - h))
+  }, [x, y])
 
   const e = entry.enrichment
   const definitions = (e?.meanings ?? []).slice(0, 2)
@@ -78,9 +86,9 @@ function PreviewCard({ target: { entry, rect } }: { target: PreviewTarget }) {
     <motion.div
       ref={ref}
       className={`word-preview ${toneClass(entry.word)}`}
-      style={{ left, top, width: WIDTH }}
-      initial={{ opacity: 0, x: left > rect.left ? -6 : 6, rotate: -0.6 }}
-      animate={{ opacity: 1, x: 0, rotate: 0 }}
+      style={{ left, top, width: WIDTH, pointerEvents: 'none' }}
+      initial={{ opacity: 0, scale: 0.96, rotate: -0.6 }}
+      animate={{ opacity: 1, scale: 1, rotate: 0 }}
       transition={{ type: 'spring', stiffness: 420, damping: 30 }}
       role="tooltip"
     >
