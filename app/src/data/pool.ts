@@ -1,5 +1,5 @@
 // The word pool: a word in the middle and three rings of words around it.
-//   0 · same meaning: words you could use instead
+//   0 · similar meaning: words you could use instead
 //   1 · explains it: words that say what it means
 //   2 · used with it: words it often goes together with
 // Relevance matters more than numbers, so a ring rather stays short than gets filled up
@@ -10,7 +10,7 @@ import type { WordLevel } from "./levels";
 export type RingId = 0 | 1 | 2;
 
 export const RING_NAMES = [
-  "same meaning",
+  "similar meaning",
   "explains it",
   "used with it",
 ] as const;
@@ -105,7 +105,7 @@ export function buildRings(
   const ok = (w: string) =>
     usable(w, word, h) && ![...taken].some((t) => sameFamily(t, w, h));
 
-  // same meaning: agreement between sources counts most; a lone source must be near its top
+  // similar meaning: agreement between sources counts most; a lone source must be near its top
   const score = new Map<
     string,
     { score: number; sources: number; strong: boolean }

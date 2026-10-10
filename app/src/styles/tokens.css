@@ -42,7 +42,7 @@
   --calm: light-dark(#e6ede3, #24282e);
   --calm-ink: light-dark(#4b6a52, #a9b7c5);
 
-  /* word pool rings: same meaning · explains it · used with it */
+  /* word pool rings: similar meaning · explains it · used with it */
   --ring-same: light-dark(#6a5fd0, #ada6ff);
   --ring-explains: light-dark(#14806a, #5fd3ac);
   --ring-used: light-dark(#b0640f, #f0b35c);

@@ -2,7 +2,7 @@
 // every frame: three rings in perspective, words on fixed seats so they never overlap,
 // turning (each ring by its own step, like a combination lock), tilting, a soft cursor
 // parallax and a field of faint dots behind. On phones the rings are entered by zooming:
-// zoomed out shows "used with it", further in "explains it", all the way in "same meaning".
+// zoomed out shows "used with it", further in "explains it", all the way in "similar meaning".
 // Tested layouts: the seats below never overlap at any resting turn or tilt.
 
 export interface PoolParams {
@@ -24,7 +24,7 @@ export interface PoolParams {
   fs: [number, number, number];
   lift: number;
   dragPx: number;
-  /** zoom per level (phones): level 0 = used with it … level 2 = same meaning */
+  /** zoom per level (phones): level 0 = used with it … level 2 = similar meaning */
   zoom?: [number, number, number];
   focusR?: number;
   fade?: number;

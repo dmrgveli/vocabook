@@ -21,7 +21,7 @@ import { RING_NAMES, type PoolItem } from "../data/pool";
 import { DESKTOP, PHONE, PoolEngine, RING_VARS } from "./pool/engine";
 
 // Word rings: search a word, then travel through the words around it on three rings
-// (same meaning · explains it · used with it). Desktop: turn, tilt, hover for details,
+// (similar meaning · explains it · used with it). Desktop: turn, tilt, hover for details,
 // click to go to a word. Phones: zoom between the rings, tap a word for details.
 
 const ZOOM_TIP_KEY = "pool-zoom-tip";
@@ -556,7 +556,7 @@ function usePeek(word: string): Peek | "error" | undefined {
   return info;
 }
 
-const RELATION = ["Same meaning as", "Explains", "Used with"] as const;
+const RELATION = ["Similar meaning to", "Explains", "Used with"] as const;
 
 /** A word's details in the theme's card style: the middle word, a hovered word (desktop) or a tapped one (phones). */
 function WordCard({
