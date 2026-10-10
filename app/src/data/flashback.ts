@@ -1,5 +1,6 @@
 import { levelOf } from './levels'
-import { alive, createEncounter, isPractice, metEncounters, now, type Entry, type Mastery } from './model'
+import { exposureLevel } from './exposure'
+import { alive, createEncounter, isPractice, metEncounters, now, type Entry } from './model'
 
 // Flashback: a short round of recall with your own words, back in the moment you met them.
 //
@@ -184,8 +185,8 @@ function meaningChoices(entry: Entry, all: Entry[], random: Random, commonness: 
 /** How many finished rounds a word has been in. */
 export const practiceCount = (entry: Entry) => alive(entry.encounters).filter(isPractice).length
 
-/** Words you know less well come up a little more often. */
-const MASTERY_WEIGHT: Record<Mastery, number> = { recognize: 1, understand: 0.8, use: 0.6 }
+/** Words you've spent less time with come up a little more often: 1 for a word just met … 0.6 for an old friend. */
+const exposureWeight = (e: Entry) => 1.1 - 0.1 * exposureLevel(e)
 
 /**
  * Random words for a round, weighted towards words that were in fewer rounds
@@ -196,7 +197,7 @@ export function pickFlashbackWords(entries: Entry[], size: number, random: Rando
   return entries
     .filter((e) => !e.deletedAt)
     .map((e) => {
-      const weight = MASTERY_WEIGHT[e.mastery] / (1 + practiceCount(e)) ** 2
+      const weight = exposureWeight(e) / (1 + practiceCount(e)) ** 2
       return { e, key: Math.pow(random() || Number.MIN_VALUE, 1 / weight) }
     })
     .sort((a, b) => b.key - a.key)

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
-import { metEncounters, type Entry, type Mastery } from './model'
+import { exposureLevel } from './exposure'
+import { metEncounters, type Entry } from './model'
 
 // "A page from your notebook": when the app opens and the notebook has enough words,
 // a small, dismissable pop-up invites the user to look at a few words they haven't
@@ -12,14 +13,14 @@ const RESTING_DAYS = 1
 const PREF_KEY = 'reminders-enabled'
 const SHOWN_KEY = 'reminder-shown'
 
-/** Words you know less well come back sooner. */
-const MASTERY_WEIGHT: Record<Mastery, number> = { recognize: 1, understand: 0.7, use: 0.4 }
+/** Words you've spent less time with come back sooner: 1 for a word just met … 0.4 for an old friend. */
+const exposureWeight = (e: Entry) => 1.15 - 0.15 * exposureLevel(e)
 
 const DAY = 864e5
 
 /**
  * The words to suggest: not looked at for at least a day, ranked by time since last
- * seen weighted by mastery. Undefined when there isn't enough to make a page.
+ * seen weighted by exposure. Undefined when there isn't enough to make a page.
  */
 export function pickReminderWords(entries: Entry[], now = Date.now()): Entry[] | undefined {
   const words = entries.filter((e) => !e.deletedAt)
@@ -28,7 +29,7 @@ export function pickReminderWords(entries: Entry[], now = Date.now()): Entry[] |
     .map((e) => {
       const lastSeen = Date.parse(e.lastViewedAt ?? e.createdAt)
       const days = (now - lastSeen) / DAY
-      return { e, days, score: days * MASTERY_WEIGHT[e.mastery] }
+      return { e, days, score: days * exposureWeight(e) }
     })
     .filter((x) => x.days >= RESTING_DAYS)
     .sort((a, b) => b.score - a.score)

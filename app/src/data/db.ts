@@ -204,11 +204,22 @@ export async function deleteEntry(id: string): Promise<void> {
   await updateEntry(id, (e) => ({ ...e, deletedAt: now() }))
 }
 
-/** Records when the word page was opened; does not touch updatedAt (content did not change). */
-export async function markViewed(id: string): Promise<void> {
+// A look counts once per word in ten minutes: going back and forth to a page is one look.
+const LOOK_GAP = 10 * 60_000
+const lastCounted = new Map<string, number>()
+
+/**
+ * Records when the word was looked at; does not touch updatedAt (content did not change).
+ * `count`: a real look (the word page, a reminder), added to the word's views for exposure.
+ */
+export async function markViewed(id: string, count = false): Promise<void> {
   const entry = await getEntry(id)
   if (!entry) return
-  await (await db()).put('entries', { ...entry, lastViewedAt: now() })
+  const t = Date.now()
+  const counts = count && t - (lastCounted.get(id) ?? 0) > LOOK_GAP
+  if (counts) lastCounted.set(id, t)
+  await (await db()).put('entries', { ...entry, lastViewedAt: now(), ...(counts && { views: (entry.views ?? 0) + 1 }) })
+  if (counts) notify('cache')
 }
 
 /** Changes several entries in one go (bulk actions); one notification for all of them. */

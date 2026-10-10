@@ -79,11 +79,12 @@
   display: none;
 }
 
+/* under the toolbar, so filtering never makes the toolbar wrap */
 .result-count {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
+  margin: -2px 0 8px 2px;
   font-size: 13px;
 }
 
@@ -359,45 +360,19 @@
   font-size: 12.5px;
 }
 
-.segmented {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  padding: 3px;
-  border-radius: 999px;
-  border: 1.5px solid var(--line);
-  background: var(--card);
-  width: 360px;
-}
-
-.segmented button {
-  position: relative;
-  height: 34px;
-  border: 0;
-  background: transparent;
-  border-radius: 999px;
-  font-size: 13.5px;
+.word-exposure {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink-2);
+  cursor: default;
 }
 
-.segmented button[aria-checked='true'] {
-  color: #1b1a1f;
-}
-
-.segmented-thumb {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border: 1.5px solid #1b1a1f;
-  background: var(--thumb);
-}
-
-.segmented button[data-level='recognize'] { --thumb: var(--mastery-recognize); }
-.segmented button[data-level='understand'] { --thumb: var(--mastery-understand); }
-.segmented button[data-level='use'] { --thumb: var(--mastery-use); }
-
-.segmented-label {
-  position: relative;
+.word-exposure .exposure-meter span {
+  width: 7px;
+  height: 7px;
 }
 
 .word-columns {
@@ -1399,37 +1374,90 @@ p:hover .hover-only,
 
 /* ---------- look up from the notebook search ---------- */
 
-.lookup-hint {
+/* notebook search: dictionary words you don't have yet, to look up or add */
+.search-suggest {
+  margin: 2px 0 10px;
+}
+
+.search-suggest-label {
+  display: block;
+  margin: 0 0 6px 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+.search-suggest ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.search-suggest li {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 4px 0 6px;
-  padding: 10px 14px;
-  border: 1.5px dashed var(--line);
-  border-radius: var(--r-m, 12px);
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 4px 4px 14px;
+  border: 1.5px dashed var(--line-soft);
+  border-radius: 999px;
   background: var(--card);
-  color: var(--ink-2);
-  text-decoration: none;
-  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
-}
-
-.lookup-hint strong {
-  font-weight: 400;
-  font-size: 1.3em;
-  color: var(--ink);
-  background: linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 92%, transparent 92%);
-}
-
-.lookup-hint-arrow {
-  margin-left: auto;
+  transition: border-color 0.15s;
 }
 
 @media (hover: hover) {
-  .lookup-hint:hover {
-    border-style: solid;
+  .search-suggest li:hover {
+    border-color: var(--line);
+  }
+}
+
+.search-suggest-word {
+  min-width: 0;
+  margin-right: auto;
+  color: var(--ink);
+  font-size: 21px;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.search-suggest-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.search-suggest-add {
+  border: 1.5px solid var(--line);
+  background: var(--marker);
+  color: var(--marker-ink);
+}
+
+@media (hover: hover) {
+  .search-suggest-btn:hover {
+    background: var(--hover);
     color: var(--ink);
-    transform: translate(-1px, -1px);
-    box-shadow: var(--pop);
+  }
+
+  .search-suggest-add:hover {
+    background: var(--marker);
+    color: var(--marker-ink);
+    box-shadow: 2px 2px 0 var(--line);
   }
 }
 
@@ -1572,7 +1600,9 @@ p:hover .hover-only,
 .line {
   position: relative;
   border-radius: var(--r-s);
-  transition: background 0.15s;
+  transition:
+    background 0.15s,
+    padding-left 0.2s var(--ease);
 }
 
 /* the K-band colour as a small tab against the margin */
@@ -2215,6 +2245,25 @@ textarea.inline-edit.mine-edit {
   left: -8px;
 }
 
+/* ruled page: the line moves over to make room for the mark where the level tab was, so nothing overlaps */
+.sheet-selecting .line {
+  padding-left: 48px;
+}
+
+.sheet-selecting .line::before {
+  opacity: 0;
+}
+
+.sheet-lines > li > .select-mark {
+  top: 15px;
+  left: 14px;
+}
+
+.sheet-brief .sheet-lines > li > .select-mark {
+  top: 50%;
+  translate: 0 -50%;
+}
+
 [data-selected='true'] > .select-mark {
   background: var(--marker);
   color: var(--marker-ink);
@@ -2229,39 +2278,79 @@ textarea.inline-edit.mine-edit {
   outline-offset: 2px;
 }
 
+/* a slim floating pill, like the phone tab bar: thin border, soft shadow, quiet buttons */
 .bulk-bar {
   position: fixed;
   z-index: 40;
   left: 50%;
-  bottom: 22px;
+  bottom: 24px;
   translate: -50% 0;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
+  gap: 2px;
   width: max-content;
   max-width: calc(100vw - 32px);
-  padding: 8px 10px 8px 16px;
-  border: 1.5px solid var(--line);
-  border-radius: 16px;
+  height: 50px;
+  padding: 0 6px 0 18px;
+  border: 1px solid color-mix(in oklch, var(--line) 55%, transparent);
+  border-radius: 999px;
   background: var(--card);
-  box-shadow: var(--pop-lg);
+  box-shadow:
+    2px 3px 0 color-mix(in oklch, var(--line) 18%, transparent),
+    0 12px 30px -12px color-mix(in oklch, var(--line) 40%, transparent);
 }
 
 .bulk-count {
-  margin-right: 4px;
+  margin-right: 6px;
   font-size: 14px;
+  color: var(--ink-2);
   white-space: nowrap;
 }
 
 .bulk-count b {
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
+}
+
+.bulk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bulk-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .bulk-btn:not(:disabled):hover {
+    background: var(--hover);
+  }
+}
+
+.bulk-close {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+  color: var(--ink-3);
 }
 
 .bulk-sep {
   width: 1px;
-  height: 22px;
+  height: 20px;
   margin: 0 4px;
   background: var(--line-soft);
 }
@@ -2294,8 +2383,9 @@ textarea.inline-edit.mine-edit {
   display: none;
 }
 
-/* the word slides in once the big heading has scrolled away */
+/* the word slides in once the big heading has scrolled away; a long word is cut short, never its speak button */
 .section-nav-word {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2312,7 +2402,18 @@ textarea.inline-edit.mine-edit {
   opacity: 1;
 }
 
+.section-nav-word .truncate {
+  min-width: 0;
+}
+
+.section-nav-word .speak-btn {
+  flex: none;
+}
+
+/* the links take what is left and scroll sideways instead of running under the word */
 .section-nav-links {
+  flex: 1;
+  min-width: 0;
   display: flex;
   gap: 6px;
   overflow-x: auto;
@@ -2388,14 +2489,6 @@ textarea.inline-edit.mine-edit {
 
 .feedback-error {
   color: var(--danger);
-}
-
-.feedback-maintainer {
-  margin-top: 10px;
-}
-
-.feedback-maintainer code {
-  overflow-wrap: anywhere;
 }
 
 .feedback-inbox {

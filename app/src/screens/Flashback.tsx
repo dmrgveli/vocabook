@@ -21,7 +21,7 @@ import {
   type RoundResult,
 } from '../data/flashback'
 import { FlashbackHistoryButton } from '../components/FlashbackHistory'
-import { MASTERY_LABELS, type Entry } from '../data/model'
+import type { Entry } from '../data/model'
 import { wordPath } from '../data/paths'
 import { dueEntries, nextDue, whenLabel } from '../data/srs'
 import { speak } from '../speech'
@@ -239,7 +239,7 @@ interface Answer {
 }
 
 function Round({ entries, size, words, onAgain }: { entries: Entry[]; size: number; words?: Entry[]; onAgain: () => void }) {
-  // The round is fixed when it starts; later edits (a mastery change) don't reshuffle it.
+  // The round is fixed when it starts; later edits (a new sentence, a note) don't reshuffle it.
   const [cards] = useState(() => (words ? buildRoundOf(words, entries) : buildRound(entries, size)))
   const [queue, setQueue] = useState(cards)
   const [index, setIndex] = useState(0)
@@ -501,11 +501,6 @@ function AnswerDetails({ entry, card }: { entry: Entry; card: FlashCard }) {
         <blockquote className="flash-moment word-font" lang="en">
           “{moment.sentence}” <span className="faint small">· {moment.source}</span>
         </blockquote>
-      )}
-      {entry.mastery === 'recognize' && (
-        <button className="chip flash-bump" onClick={() => updateEntry(entry.id, (e) => ({ ...e, mastery: 'understand' }))}>
-          I know what it means now → {MASTERY_LABELS.understand}
-        </button>
       )}
     </>
   )

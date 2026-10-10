@@ -139,7 +139,7 @@ function ReminderWord({ entry, onOpen }: { entry: Entry; onOpen: () => void }) {
           onClick={() => {
             setRevealed(true)
             // Looking at it counts as seeing it, so it rests before coming back.
-            void markViewed(entry.id).catch(() => toast('Could not save that you saw this word'))
+            void markViewed(entry.id, true).catch(() => toast('Could not save that you saw this word'))
           }}
         >
           <Eye size={14} /> What did it mean?

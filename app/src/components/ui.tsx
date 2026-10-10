@@ -1,9 +1,9 @@
-import { motion } from 'motion/react'
 import { Mic, Snail, Volume2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { bandOf, bandOfWord, describeLevel, formatLevel, levelOf, useLevelsReady } from '../data/levels'
 import { describeFrequency, useWordFrequency } from '../data/wordFrequency'
-import { MASTERY_HINTS, MASTERY_LABELS, MASTERY_LEVELS, type Mastery } from '../data/model'
+import { EXPOSURE_LABELS, EXPOSURE_LEVELS, exposureOf, exposureSummary } from '../data/exposure'
+import type { Entry } from '../data/model'
 import { canSpeak, speak, useSpeaking } from '../speech'
 
 /** CSS class that paints an element in its K band's colours. */
@@ -44,35 +44,19 @@ export function KBadge({ word, large, plain }: { word: string; large?: boolean; 
   )
 }
 
-export function MasteryMeter({ level }: { level: Mastery }) {
+/**
+ * Exposure, quietly: five small dots that fill as you spend time with the word.
+ * The tooltip says what it is made of.
+ */
+export function ExposureMeter({ entry }: { entry: Entry }) {
+  const x = exposureOf(entry)
+  const label = EXPOSURE_LABELS[x.level]
   return (
-    <span
-      className="mastery-meter"
-      data-level={level}
-      style={{ color: `var(--mastery-${level})` }}
-      title={`${MASTERY_LABELS[level]}: ${MASTERY_HINTS[level]}`}
-      aria-label={`Mastery: ${MASTERY_LABELS[level]}`}
-    >
-      <span />
-      <span />
-      <span />
-    </span>
-  )
-}
-
-/** Segmented control with a sliding thumb. */
-export function MasteryControl({ value, onChange }: { value: Mastery; onChange: (m: Mastery) => void }) {
-  return (
-    <div className="segmented" role="radiogroup" aria-label="How well do you know this word?">
-      {MASTERY_LEVELS.map((m) => (
-        <button key={m} role="radio" aria-checked={value === m} data-level={m} title={MASTERY_HINTS[m]} onClick={() => onChange(m)}>
-          {value === m && (
-            <motion.span layoutId="mastery-thumb" className="segmented-thumb" transition={{ type: 'spring', stiffness: 500, damping: 36 }} />
-          )}
-          <span className="segmented-label">{MASTERY_LABELS[m]}</span>
-        </button>
+    <span className="exposure-meter" data-level={x.level} title={`${label} · ${exposureSummary(entry, x)}`} aria-label={`Exposure: ${label}`}>
+      {EXPOSURE_LEVELS.map((l) => (
+        <span key={l} />
       ))}
-    </div>
+    </span>
   )
 }
 

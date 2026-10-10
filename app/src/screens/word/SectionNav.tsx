@@ -61,7 +61,7 @@ export function SectionNav({ word }: { word: string }) {
   return (
     <nav ref={bar} className={compact ? 'section-nav is-compact' : 'section-nav'} aria-label="Sections of this page">
       <span className="section-nav-word word-font" lang="en" aria-hidden={!compact}>
-        {word}
+        <span className="truncate">{word}</span>
         <SpeakButton text={word} />
       </span>
       <div className="section-nav-links">

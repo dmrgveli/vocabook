@@ -1,9 +1,10 @@
 import { motion } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MASTERY_LABELS, metEncounters, type Entry } from '../data/model'
+import { EXPOSURE_LABELS, exposureLevel } from '../data/exposure'
+import { metEncounters, type Entry } from '../data/model'
 import { entrySource, lineSentence, topPhrases } from '../data/notebook'
-import { KBadge, MasteryMeter, toneClass } from './ui'
+import { ExposureMeter, KBadge, toneClass } from './ui'
 
 // Desktop only: resting the pointer on a word in the one-line-per-word notebook opens a card
 // with its details right at the pointer, and the card follows it along the line. It is a
@@ -126,7 +127,7 @@ function PreviewCard({ target: { entry, x, y } }: { target: PreviewTarget }) {
           {encounters > 1 && ` · met ${encounters} times`}
         </span>
         <span className="row" style={{ gap: 6 }}>
-          {MASTERY_LABELS[entry.mastery]} <MasteryMeter level={entry.mastery} />
+          {EXPOSURE_LABELS[exposureLevel(entry)]} <ExposureMeter entry={entry} />
         </span>
       </div>
       <p className="faint small word-preview-date">Added {dateFormat.format(new Date(entry.createdAt))}</p>

@@ -281,10 +281,6 @@
     display: none;
   }
 
-  .result-count {
-    margin-left: 0;
-  }
-
   .day {
     margin-top: 16px;
   }
@@ -369,11 +365,8 @@
   }
 
   .word-hero-side {
-    align-items: stretch;
-  }
-
-  .segmented {
-    width: 100%;
+    align-items: flex-start;
+    gap: 4px;
   }
 
   .word-columns {
@@ -536,27 +529,24 @@
     display: none;
   }
 
-  /* one row that scrolls sideways, so the words above stay visible */
+  /* the bar sits just above the tab bar */
   .bulk-bar {
-    bottom: calc(84px + env(safe-area-inset-bottom));
-    width: calc(100vw - 24px);
-    padding: 6px 8px;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    overflow-x: auto;
-    scrollbar-width: none;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    height: 46px;
+    padding: 0 4px 0 14px;
   }
 
-  .bulk-bar > * {
-    flex: none;
+  .bulk-btn {
+    padding: 0 9px;
   }
 
-  .bulk-sep {
+  /* words only on a phone, so the whole bar fits */
+  .bulk-btn:not(.bulk-close) svg {
     display: none;
   }
 
-  .select-mark {
-    left: -9px;
+  .bulk-sep {
+    margin: 0 2px;
   }
 
   /* word page section bar: under the top bar, sideways scrolling links */

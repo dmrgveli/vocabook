@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { EditableText } from '../components/EditableText'
-import { MasteryControl, SpeakButton } from '../components/ui'
+import { ExposureMeter, SpeakButton } from '../components/ui'
+import { EXPOSURE_LABELS, exposureLevel, exposureSummary } from '../data/exposure'
 import { deleteEntry, markViewed, updateEntry } from '../data/db'
 import { alive, type Entry } from '../data/model'
 import { parseWordParam, wordPath } from '../data/paths'
@@ -66,7 +67,7 @@ export function WordPage() {
 
   useEffect(() => {
     if (!entry) return
-    void markViewed(entry.id)
+    void markViewed(entry.id, true)
     // Old links used the entry id; show the readable address instead.
     if (param && 'id' in parseWordParam(param)) navigate(wordPath(entry.word), { replace: true })
   }, [entry?.id])
@@ -106,8 +107,10 @@ function WordPageContent({ entry }: { entry: Entry }) {
           <MyWords entry={entry} update={update} />
         </div>
         <div className="word-hero-side">
-          <span className="label-sm">How well do you know it?</span>
-          <MasteryControl value={entry.mastery} onChange={(m) => update((x) => ({ ...x, mastery: m }))} />
+          <span className="word-exposure" title="Exposure: it grows each time you open the word, meet it somewhere new, practise it or write about it">
+            <ExposureMeter entry={entry} /> {EXPOSURE_LABELS[exposureLevel(entry)]}
+          </span>
+          <span className="faint">{exposureSummary(entry)}</span>
           <span className="faint">Added {formatDate(entry.createdAt)}</span>
           <span className="faint" title="Spaced repetition: when Flashback will bring it back">Next review {whenLabel(scheduleOf(entry).due)}</span>
         </div>

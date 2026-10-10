@@ -32,6 +32,8 @@ function mergeById<T extends Stamped>(a: T[], b: T[]): T[] {
   return [...byId.values()]
 }
 
+const maxViews = (a?: number, b?: number) => (a === undefined && b === undefined ? undefined : Math.max(a ?? 0, b ?? 0))
+
 const maxDefined = (a?: string, b?: string) => (a && b ? (a > b ? a : b) : (a ?? b))
 
 function mergeEntry(local: Entry, remote: Entry): Entry {
@@ -41,6 +43,7 @@ function mergeEntry(local: Entry, remote: Entry): Entry {
     encounters: mergeById(local.encounters, remote.encounters),
     notes: mergeById(local.notes, remote.notes),
     lastViewedAt: maxDefined(local.lastViewedAt, remote.lastViewedAt),
+    views: maxViews(local.views, remote.views),
     enrichment: local.enrichment,
   }
 }
@@ -73,6 +76,8 @@ function dedupeWords(entries: Entry[]): Entry[] {
         notes: mergeById(merged.notes, other.notes),
         tags: [...new Set([...merged.tags, ...other.tags])],
         lastViewedAt: maxDefined(merged.lastViewedAt, other.lastViewedAt),
+        // two copies of one word: both were looked at
+        views: merged.views === undefined && other.views === undefined ? undefined : (merged.views ?? 0) + (other.views ?? 0),
       }
       replaced.set(other.id, { ...other, deletedAt: t, updatedAt: t })
     }

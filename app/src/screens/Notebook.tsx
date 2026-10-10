@@ -1,17 +1,19 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowRight, ArrowUpDown, BookOpenText, Check, History, LayoutGrid, List, ListChecks, NotebookText, Plus, Rows3, Search, Trash2, X } from 'lucide-react'
+import { ArrowUpDown, BookOpenText, Check, History, LayoutGrid, List, ListChecks, NotebookText, Plus, Rows3, Search, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
+import { useSuggestions } from '../hooks'
 import { MOD_KEY } from '../components/Sidebar'
-import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
+import { ExposureMeter, KBadge, SpeakButton, toneClass } from '../components/ui'
 import { GuestWordsOffer } from '../components/GuestWords'
 import { useWordPreview, WordPreview } from '../components/WordPreview'
 import { RuledPage, selectHandlers } from './notebook/RuledPage'
 import { restoreEntries, updateEntries } from '../data/db'
 import { FLASHBACK_MIN_WORDS } from '../data/flashback'
 import { bandOfWord, K_BANDS, levelOf, MAX_LEVEL, useLevelsReady } from '../data/levels'
-import { metEncounters, MASTERY_LABELS, MASTERY_LEVELS, normalizeWord, type Entry, type Mastery } from '../data/model'
+import { EXPOSURE_LABELS, type ExposureLevel } from '../data/exposure'
+import { metEncounters, normalizeWord, type Entry } from '../data/model'
 import { lookPath, wordPath } from '../data/paths'
 import { dueEntries } from '../data/srs'
 import {
@@ -63,8 +65,8 @@ function groupTitle(group: GroupKey, key: string): string {
       return key || 'No source'
     case 'level':
       return K_BANDS.find((b) => b.id === key)?.label ?? 'Level unknown'
-    case 'mastery':
-      return MASTERY_LABELS[key as Mastery]
+    case 'exposure':
+      return EXPOSURE_LABELS[Number(key) as ExposureLevel]
     default:
       return ''
   }
@@ -88,6 +90,8 @@ interface NotebookView {
 const VIEW_KEY = 'notebook-view'
 /** How many words are drawn at first, and added each time you near the end. */
 const RENDER_STEP = 120
+/** Dictionary words offered under the search box. */
+const SUGGESTIONS = 4
 const DEFAULT_VIEW: NotebookView = { sort: 'newest', group: 'day', layout: 'page' }
 const LAYOUTS: Layout[] = ['page', 'lines', 'cards']
 
@@ -102,6 +106,9 @@ function useNotebookView(): [NotebookView, (v: NotebookView) => void] {
   const [view, setViewState] = useState<NotebookView>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null')
+      // self-rated mastery became exposure (10 Oct 2026)
+      if (saved?.sort === 'least-known') saved.sort = 'least-exposed'
+      if (saved?.group === 'mastery') saved.group = 'exposure'
       const valid = saved && SORTS.some((s) => s.id === saved.sort) && GROUPS.some((g) => g.id === saved.group)
       return valid ? { sort: saved.sort, group: saved.group, layout: savedLayout(saved) } : DEFAULT_VIEW
     } catch {
@@ -199,10 +206,6 @@ export function Notebook({ entries }: { entries: Entry[] }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [selecting, order])
   const ids = [...selected]
-  const setMasteryAll = async (m: Mastery) => {
-    await updateEntries(ids, (e) => ({ ...e, mastery: m }))
-    toast(`${ids.length} ${ids.length === 1 ? 'word' : 'words'}: ${MASTERY_LABELS[m]}`)
-  }
   const removeAll = async () => {
     const t = new Date().toISOString()
     await updateEntries(ids, (e) => ({ ...e, deletedAt: t }))
@@ -227,7 +230,7 @@ export function Notebook({ entries }: { entries: Entry[] }) {
 
   const activeChips = [
     filters.band && { key: 'band', label: K_BANDS.find((b) => b.id === filters.band)!.label },
-    filters.mastery && { key: 'mastery', label: MASTERY_LABELS[filters.mastery] },
+    filters.exposure && { key: 'exposure', label: EXPOSURE_LABELS[filters.exposure] },
     filters.source && { key: 'source', label: filters.source },
   ].filter(Boolean) as { key: keyof typeof filters; label: string }[]
 
@@ -317,17 +320,18 @@ export function Notebook({ entries }: { entries: Entry[] }) {
             </select>
           </label>
         </span>
-        {hasActiveFilters(filters) && (
-          <span className="faint result-count">
-            {shown} of {entries.length}
-            <button className="btn btn-quiet" onClick={() => setFilters(() => EMPTY_FILTERS)}>
-              Clear
-            </button>
-          </span>
-        )}
       </div>
 
-      <LookUpHint query={filters.query} entries={entries} />
+      {hasActiveFilters(filters) && (
+        <p className="faint result-count">
+          {shown} of {entries.length} {entries.length === 1 ? 'word' : 'words'}
+          <button className="btn btn-quiet small" onClick={() => setFilters(() => EMPTY_FILTERS)}>
+            Clear
+          </button>
+        </p>
+      )}
+
+      <SearchSuggestions query={filters.query} entries={entries} />
 
       {pages.length === 0 ? (
         <p className="muted no-results">No words in your notebook match.</p>
@@ -380,25 +384,20 @@ export function Notebook({ entries }: { entries: Entry[] }) {
       <AnimatePresence>
         {selecting && (
           <motion.div className="bulk-bar" role="toolbar" aria-label="Selected words" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }}>
-            <span className="bulk-count">
+            <span className="bulk-count" aria-live="polite">
               <b>{selected.size}</b> selected
             </span>
-            <button className="btn btn-quiet small" onClick={() => setSelected(new Set(selected.size === order.length ? [] : order))}>
-              {selected.size === order.length ? 'None' : `All ${order.length}`}
+            <button className="bulk-btn" onClick={() => setSelected(new Set(selected.size === order.length ? [] : order))}>
+              {selected.size === order.length ? 'None' : 'All'}
             </button>
             <span className="bulk-sep" />
-            {MASTERY_LEVELS.map((m) => (
-              <button key={m} className="btn small" disabled={!selected.size} onClick={() => void setMasteryAll(m)}>
-                {MASTERY_LABELS[m]}
-              </button>
-            ))}
-            <button className="btn small" disabled={!selected.size || entries.length < FLASHBACK_MIN_WORDS} onClick={() => navigate('/flashback', { state: { practice: ids } })}>
-              <History size={14} /> Practice
+            <button className="bulk-btn" disabled={!selected.size || entries.length < FLASHBACK_MIN_WORDS} onClick={() => navigate('/flashback', { state: { practice: ids } })}>
+              <History size={15} /> Practice
             </button>
-            <button className="btn small bulk-delete" disabled={!selected.size} onClick={() => void removeAll()}>
-              <Trash2 size={14} /> Remove
+            <button className="bulk-btn bulk-delete" disabled={!selected.size} onClick={() => void removeAll()}>
+              <Trash2 size={15} /> Remove
             </button>
-            <button className="icon-btn" aria-label="Stop selecting" onClick={stopSelecting}>
+            <button className="bulk-btn bulk-close" aria-label="Stop selecting" onClick={stopSelecting}>
               <X size={16} />
             </button>
           </motion.div>
@@ -408,21 +407,42 @@ export function Notebook({ entries }: { entries: Entry[] }) {
   )
 }
 
-/** Searching for a word you don't have yet: offer to look it up in the dictionary. */
-function LookUpHint({ query, entries }: { query: string; entries: Entry[] }) {
-  const word = normalizeWord(query)
-  // single words or short phrases only, and not one already in the notebook
-  if (!word || word.length > 40 || !/^[a-z][a-z' -]*$/i.test(word) || entries.some((e) => e.word === word)) return null
+/**
+ * Searching the notebook also offers dictionary words you don't have yet: look one up, or
+ * add it right away. If the dictionary has nothing to suggest, the typed word itself.
+ */
+function SearchSuggestions({ query, entries }: { query: string; entries: Entry[] }) {
+  const { openQuickAdd } = useAppState()
+  const typed = normalizeWord(query)
+  const valid = typed.length >= 2 && typed.length <= 40 && /^[a-z][a-z' -]*$/i.test(typed)
+  const { status, items } = useSuggestions(typed, valid)
+  const words = useMemo(() => {
+    const have = new Set(entries.map((e) => e.word))
+    const list = items.filter((s) => !have.has(s.word)).slice(0, SUGGESTIONS)
+    if (list.length === 0 && status !== 'loading' && !have.has(typed)) return [{ word: typed, frequency: undefined }]
+    return list
+  }, [items, status, entries, typed])
+  if (!valid || words.length === 0) return null
   return (
-    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
-      <Link to={lookPath(word)} className="lookup-hint">
-        <BookOpenText size={17} />
-        <span>
-          Look up <strong className="word-font">{word}</strong> in the dictionary
-        </span>
-        <ArrowRight size={16} className="lookup-hint-arrow" />
-      </Link>
-    </motion.div>
+    <motion.section className="search-suggest" aria-label="Words not in your notebook" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+      <span className="search-suggest-label">Not in your notebook yet</span>
+      <ul>
+        {words.map((s) => (
+          <li key={s.word}>
+            <Link to={lookPath(s.word)} className="search-suggest-word word-font truncate" lang="en" title={`Look up “${s.word}”`}>
+              {s.word}
+            </Link>
+            <KBadge word={s.word} plain />
+            <Link to={lookPath(s.word)} className="search-suggest-btn" aria-label={`Look up “${s.word}”`}>
+              <BookOpenText size={14} /> <span>Look up</span>
+            </Link>
+            <button className="search-suggest-btn search-suggest-add" onClick={() => openQuickAdd({ word: s.word, frequency: s.frequency })} aria-label={`Add “${s.word}” to your notebook`}>
+              <Plus size={14} strokeWidth={2.5} /> <span>Add</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </motion.section>
   )
 }
 
@@ -453,7 +473,7 @@ function WordCard({ entry }: { entry: Entry }) {
           {source}
           {encounters > 1 && <span className="encounter-count">×{encounters}</span>}
         </span>
-        <MasteryMeter level={entry.mastery} />
+        <ExposureMeter entry={entry} />
       </div>
     </article>
   )

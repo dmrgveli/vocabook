@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, Copy, Inbox, Trash2 } from 'lucide-react'
+import { Check, Inbox, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { deleteFeedback, feedbackAvailable, readFeedback, sendFeedback, type FeedbackItem, type FeedbackKind } from '../api/feedback'
 import { useAuth } from '../sync/auth'
@@ -103,7 +103,6 @@ function FeedbackInbox() {
       return new Set()
     }
   })
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!signedIn) return
@@ -123,29 +122,10 @@ function FeedbackInbox() {
     }
   }, [items])
 
-  if (!signedIn) return null
-  if (items === null)
-    return (
-      <details className="feedback-maintainer">
-        <summary className="faint small">For the app's maintainer</summary>
-        <p className="faint small">
-          To read feedback here, add this account's ID to the Worker's <code>ADMIN_SUBS</code> secret:{' '}
-          <code>{auth.user.sub}</code>{' '}
-          <button
-            className="icon-btn"
-            aria-label="Copy account ID"
-            onClick={() => {
-              void navigator.clipboard?.writeText(auth.user.sub)
-              setCopied(true)
-            }}
-          >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-          </button>
-        </p>
-      </details>
-    )
-  if (items === undefined) return null
+  // Everyone but the maintainers gets a 403 and sees nothing at all.
+  if (!signedIn || !items) return null
 
+  const fresh = items.filter((i) => !seen.has(i.id)).length
   const remove = async (id: string) => {
     await deleteFeedback(id)
     setItems((cur) => cur?.filter((i) => i.id !== id))
@@ -155,6 +135,7 @@ function FeedbackInbox() {
     <section className="feedback-inbox">
       <h3 className="row">
         <Inbox size={17} /> Inbox <span className="faint">{items.length}</span>
+        {fresh > 0 && <span className="feedback-new">{fresh} new</span>}
       </h3>
       {items.length === 0 && <p className="faint small">No feedback yet.</p>}
       <ul>

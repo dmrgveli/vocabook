@@ -27,6 +27,14 @@ describe('mergeNotebooks', () => {
     expect(merged.notes.map((n) => n.text)).toEqual(['local note'])
   })
 
+  it('keeps the larger view count, whichever copy is newer', () => {
+    const base = entry('grasp')
+    const local = { ...base, views: 9 }
+    const remote = { ...base, updatedAt: at('4'), views: 4 }
+    expect(mergeNotebooks([local], [remote])[0].views).toBe(9)
+    expect(mergeNotebooks([base], [base])[0].views).toBeUndefined()
+  })
+
   it('lets a newer deletion win', () => {
     const base = entry('grasp')
     const deleted = { ...base, deletedAt: at('5'), updatedAt: at('5') }
