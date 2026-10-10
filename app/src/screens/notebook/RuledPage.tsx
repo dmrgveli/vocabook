@@ -1,8 +1,8 @@
 import { Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
-  ExposureMeter,
   KBadge,
+  MasteryMeter,
   SpeakButton,
   toneClass,
 } from "../../components/ui";
@@ -188,7 +188,7 @@ function FullLine({ entry, hint }: { entry: Entry; hint?: string }) {
         {hint && <span className="line-hit">{hint}</span>}
         <div className="line-meta">
           <Source entry={entry} />
-          <ExposureMeter entry={entry} />
+          <MasteryMeter level={entry.mastery} />
         </div>
       </div>
       <div className="line-notes">
@@ -258,7 +258,7 @@ function BriefLine({ entry, hint }: { entry: Entry; hint?: string }) {
         {hint && <span className="line-hit"> · {hint}</span>}
       </span>
       <Source entry={entry} />
-      <ExposureMeter entry={entry} />
+      <MasteryMeter level={entry.mastery} />
       <span className="line-k">
         <KBadge word={entry.word} plain />
       </span>

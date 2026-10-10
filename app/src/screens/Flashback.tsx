@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowRight, Check, HelpCircle, Plus, RotateCcw, X } from 'lucide-react'
+import { ArrowRight, Check, HelpCircle, Plus, RotateCcw, Sparkles, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
@@ -16,12 +16,13 @@ import {
   RESULT_LABEL,
   ROUND_SIZES,
   shouldAskSize,
-  withPracticeRecord,
+  afterRound,
+  KNOW_IT_DAYS,
   type FlashCard,
   type RoundResult,
 } from '../data/flashback'
 import { FlashbackHistoryButton } from '../components/FlashbackHistory'
-import type { Entry } from '../data/model'
+import { MASTERY_LABELS, now, type Entry } from '../data/model'
 import { wordPath } from '../data/paths'
 import { dueEntries, nextDue, whenLabel } from '../data/srs'
 import { speak } from '../speech'
@@ -239,7 +240,7 @@ interface Answer {
 }
 
 function Round({ entries, size, words, onAgain }: { entries: Entry[]; size: number; words?: Entry[]; onAgain: () => void }) {
-  // The round is fixed when it starts; later edits (a new sentence, a note) don't reshuffle it.
+  // The round is fixed when it starts; later edits (a mastery change) don't reshuffle it.
   const [cards] = useState(() => (words ? buildRoundOf(words, entries) : buildRound(entries, size)))
   const [queue, setQueue] = useState(cards)
   const [index, setIndex] = useState(0)
@@ -247,6 +248,8 @@ function Round({ entries, size, words, onAgain }: { entries: Entry[]; size: numb
   const [results, setResults] = useState(new Map<string, RoundResult>())
   const [streak, setStreak] = useState(0)
   const [marks, setMarks] = useState<boolean[]>([])
+  /** words that moved up to Know it with this round */
+  const [promoted, setPromoted] = useState<Entry[]>([])
   const byId = new Map(entries.map((e) => [e.id, e]))
 
   const card = queue[index]
@@ -275,8 +278,11 @@ function Round({ entries, size, words, onAgain }: { entries: Entry[]; size: numb
     setIndex(index + 1)
     // The last card: the round goes on each word's timeline. Done here, in the click,
     // so it happens exactly once.
-    if (index + 1 >= nextQueue.length)
-      for (const c of cards) void updateEntry(c.entry.id, (e) => withPracticeRecord(e, nextResults.get(c.entry.id) ?? 'still-learning'))
+    if (index + 1 >= nextQueue.length) {
+      const resultOf = (id: string) => nextResults.get(id) ?? 'still-learning'
+      setPromoted(cards.map((c) => byId.get(c.entry.id) ?? c.entry).filter((e) => afterRound(e, resultOf(e.id)).mastery !== e.mastery))
+      for (const c of cards) void updateEntry(c.entry.id, (e) => afterRound(e, resultOf(c.entry.id)))
+    }
   }
 
   // Number keys pick an option.
@@ -319,7 +325,7 @@ function Round({ entries, size, words, onAgain }: { entries: Entry[]; size: numb
       </FlashbackHeader>
 
       {done ? (
-        <RoundSummary cards={cards} results={results} byId={byId} onAgain={onAgain} />
+        <RoundSummary cards={cards} results={results} byId={byId} promoted={promoted} onAgain={onAgain} />
       ) : (
         <div className="flash-stage" data-left={Math.min(queue.length - index - 1, 2)}>
           <AnimatePresence mode="popLayout" initial={false}>
@@ -502,6 +508,11 @@ function AnswerDetails({ entry, card }: { entry: Entry; card: FlashCard }) {
           “{moment.sentence}” <span className="faint small">· {moment.source}</span>
         </blockquote>
       )}
+      {entry.mastery === 'recognize' && (
+        <button className="chip flash-bump" onClick={() => updateEntry(entry.id, (e) => ({ ...e, mastery: 'understand', masteryAt: now() }))}>
+          I know what it means now → {MASTERY_LABELS.understand}
+        </button>
+      )}
     </>
   )
 }
@@ -537,11 +548,13 @@ function RoundSummary({
   cards,
   results,
   byId,
+  promoted,
   onAgain,
 }: {
   cards: FlashCard[]
   results: Map<string, RoundResult>
   byId: Map<string, Entry>
+  promoted: Entry[]
   onAgain: () => void
 }) {
   const remembered = cards.filter((c) => results.get(c.entry.id) !== 'still-learning')
@@ -592,6 +605,7 @@ function RoundSummary({
           )
         })}
       </ul>
+      {promoted.length > 0 && <Promoted words={promoted} />}
       {practice && <SentencePractice entry={practice} />}
       <div className="row flash-actions">
         <Link to="/" className="btn btn-quiet">
@@ -602,6 +616,41 @@ function RoundSummary({
         </button>
       </div>
     </motion.section>
+  )
+}
+
+/** Words that moved up to Know it on their own, with a way to put them back. */
+function Promoted({ words }: { words: Entry[] }) {
+  const [undone, setUndone] = useState(false)
+  const undo = () => {
+    const t = now()
+    for (const w of words) void updateEntry(w.id, (e) => ({ ...e, mastery: 'recognize', masteryAt: t }))
+    setUndone(true)
+  }
+  return (
+    <motion.p className="notice flash-promoted" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
+      {undone ? (
+        <span>Kept at {MASTERY_LABELS.recognize}.</span>
+      ) : (
+        <>
+          <Sparkles size={15} className="flash-promoted-icon" />
+          <span>
+            {words.map((w, i) => (
+              <span key={w.id}>
+                {i > 0 && ', '}
+                <Link to={wordPath(w.word)} className="word-font" lang="en">
+                  {w.word}
+                </Link>
+              </span>
+            ))}{' '}
+            {words.length === 1 ? 'is' : 'are'} now <b>{MASTERY_LABELS.understand}</b>: remembered on {KNOW_IT_DAYS} different days.
+          </span>
+          <button className="btn btn-quiet small" onClick={undo}>
+            Undo
+          </button>
+        </>
+      )}
+    </motion.p>
   )
 }
 

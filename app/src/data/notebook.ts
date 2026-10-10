@@ -1,18 +1,17 @@
 import { bandOfWord, type KBand } from './levels'
-import { exposureLevel, exposureOf, type ExposureLevel } from './exposure'
-import { alive, firstEncounter, metEncounters, type Entry } from './model'
+import { alive, firstEncounter, metEncounters, type Entry, type Mastery } from './model'
 
 export interface Filters {
   query: string
   band?: KBand
-  exposure?: ExposureLevel
+  mastery?: Mastery
   source?: string
 }
 
 export const EMPTY_FILTERS: Filters = { query: '' }
 
 export function hasActiveFilters(f: Filters): boolean {
-  return Boolean(f.query.trim() || f.band || f.exposure || f.source)
+  return Boolean(f.query.trim() || f.band || f.mastery || f.source)
 }
 
 /** Where a search found the word, for a small hint next to it ("in a definition"). */
@@ -59,7 +58,7 @@ export function filterEntries(entries: Entry[], f: Filters): Entry[] {
     .filter(
       (e) =>
         (!f.band || bandOfWord(e.word) === f.band) &&
-        (!f.exposure || exposureLevel(e) === f.exposure) &&
+        (!f.mastery || e.mastery === f.mastery) &&
         (!f.source || metEncounters(e).some((enc) => enc.source === f.source)),
     )
     .map((e) => ({ e, hit: q ? searchEntry(e, q) : undefined }))
@@ -110,7 +109,7 @@ export const SORTS = [
   { id: 'za', label: 'Z–A' },
   { id: 'common', label: 'Most common first' },
   { id: 'rare', label: 'Rarest first' },
-  { id: 'least-exposed', label: 'Least familiar first' },
+  { id: 'least-known', label: 'Least known first' },
   { id: 'unseen', label: 'Not seen lately' },
 ] as const
 export type SortKey = (typeof SORTS)[number]['id']
@@ -119,7 +118,7 @@ export const GROUPS = [
   { id: 'day', label: 'Day added' },
   { id: 'source', label: 'Source' },
   { id: 'level', label: 'How common' },
-  { id: 'exposure', label: 'Exposure' },
+  { id: 'mastery', label: 'How well I know it' },
   { id: 'none', label: 'No groups' },
 ] as const
 export type GroupKey = (typeof GROUPS)[number]['id']
@@ -127,6 +126,7 @@ export type GroupKey = (typeof GROUPS)[number]['id']
 /** Numeric level for sorting: 1–25, words off the lists after them, unknown last. */
 export type LevelOf = (word: string) => number | undefined
 
+const MASTERY_ORDER = { recognize: 0, understand: 1, use: 2 } as const
 const lastSeen = (e: Entry) => e.lastViewedAt ?? e.createdAt
 
 export function sortEntries(entries: Entry[], sort: SortKey, levelOf: LevelOf): Entry[] {
@@ -139,7 +139,7 @@ export function sortEntries(entries: Entry[], sort: SortKey, levelOf: LevelOf): 
     za: (a, b) => b.word.localeCompare(a.word, 'en'),
     common: (a, b) => level(a) - level(b) || byNewest(a, b),
     rare: (a, b) => level(b) - level(a) || byNewest(a, b),
-    'least-exposed': (a, b) => exposureOf(a).points - exposureOf(b).points || lastSeen(a).localeCompare(lastSeen(b)),
+    'least-known': (a, b) => MASTERY_ORDER[a.mastery] - MASTERY_ORDER[b.mastery] || lastSeen(a).localeCompare(lastSeen(b)),
     unseen: (a, b) => lastSeen(a).localeCompare(lastSeen(b)),
   }
   return [...entries].sort(compare[sort])
@@ -154,7 +154,7 @@ export interface Group {
 /**
  * Splits already-sorted entries into groups, keeping the sort inside each group.
  * Groups come in a natural order: newest day, most recently used source, 1K → 25K+,
- * Just met → Old friend.
+ * Seen it → Use it.
  */
 export function groupEntries(sorted: Entry[], group: GroupKey, bandOf: (word: string) => string | undefined): Group[] {
   if (group === 'none') return sorted.length ? [{ key: 'all', entries: sorted }] : []
@@ -162,7 +162,7 @@ export function groupEntries(sorted: Entry[], group: GroupKey, bandOf: (word: st
     day: (e) => localDay(e.createdAt),
     source: (e) => entrySource(e) ?? '',
     level: (e) => bandOf(e.word) ?? 'unknown',
-    exposure: (e) => String(exposureLevel(e)),
+    mastery: (e) => e.mastery,
   }
   const groups = new Map<string, Entry[]>()
   for (const e of sorted) {
@@ -176,7 +176,7 @@ export function groupEntries(sorted: Entry[], group: GroupKey, bandOf: (word: st
       return (a === '' ? 1 : 0) - (b === '' ? 1 : 0) || recent(b) - recent(a)
     },
     level: (a, b) => BAND_ORDER.indexOf(a) - BAND_ORDER.indexOf(b),
-    exposure: (a, b) => Number(a) - Number(b),
+    mastery: (a, b) => MASTERY_ORDER[a as Mastery] - MASTERY_ORDER[b as Mastery],
   }
   return [...groups.keys()].sort(order[group]).map((key) => ({ key, entries: groups.get(key)! }))
 }

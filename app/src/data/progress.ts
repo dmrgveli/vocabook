@@ -1,4 +1,3 @@
-import { exposureLevel } from './exposure'
 import { alive, metEncounters, type Entry } from './model'
 import { flashbackHistory } from './flashback'
 import { localDay } from './notebook'
@@ -84,10 +83,7 @@ export function heatmap(active: Map<string, number>, weeks = 12, now = new Date(
 export interface Stats {
   words: number
   thisWeek: number
-  /** words at exposure 3 (Familiar) or more */
-  familiar: number
-  /** words at the top exposure level */
-  oldFriends: number
+  inUse: number
   encounters: number
   sentences: number
   notes: number
@@ -121,8 +117,7 @@ export function stats(entries: Entry[], isRare: (word: string) => boolean, now =
     perfectRounds: rounds.filter((r) => r.words.length >= 3 && r.words.every((w) => w.result === 'first-try')).length,
     words: words.length,
     thisWeek: words.filter((e) => Date.parse(e.createdAt) > now - 7 * DAY).length,
-    familiar: words.filter((e) => exposureLevel(e) >= 3).length,
-    oldFriends: words.filter((e) => exposureLevel(e) === 5).length,
+    inUse: words.filter((e) => e.mastery === 'use').length,
     encounters: words.reduce((n, e) => n + metEncounters(e).length, 0),
     sentences: words.filter((e) => e.ownSentence).length,
     notes: words.reduce((n, e) => n + alive(e.notes).length, 0),
@@ -162,7 +157,7 @@ export function achievements(s: Stats): Achievement[] {
     goal('long-word', 'Mouthful', 'Add a word of 12 letters or more', s.longWords, 1),
     goal('rare-5', 'Deep cuts', 'Add 5 words beyond the 10,000 most common families', s.rareWords, 5),
     goal('night-owl', 'Night owl', 'Add a word between midnight and 5 am', s.lateNightWords, 1),
-    goal('use-1', 'Old friend', 'Spend so much time with a word that it becomes an old friend', s.oldFriends, 1),
+    goal('use-1', 'Into the wild', 'Mark a word as “Use it”', s.inUse, 1),
     goal('sentences-5', 'Wordsmith', 'Write your own sentence for 5 words', s.sentences, 5),
     goal('notes-10', 'Scribbler', 'Write 10 notes', s.notes, 10),
     goal('flashback-10', 'Time traveller', 'Finish 10 Flashback rounds', s.flashbackRounds, 10),

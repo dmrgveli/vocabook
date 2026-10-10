@@ -360,19 +360,45 @@
   font-size: 12.5px;
 }
 
-.word-exposure {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-2);
-  cursor: default;
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 3px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  width: 360px;
 }
 
-.word-exposure .exposure-meter span {
-  width: 7px;
-  height: 7px;
+.segmented button {
+  position: relative;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.segmented button[aria-checked='true'] {
+  color: #1b1a1f;
+}
+
+.segmented-thumb {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1.5px solid #1b1a1f;
+  background: var(--thumb);
+}
+
+.segmented button[data-level='recognize'] { --thumb: var(--mastery-recognize); }
+.segmented button[data-level='understand'] { --thumb: var(--mastery-understand); }
+.segmented button[data-level='use'] { --thumb: var(--mastery-use); }
+
+.segmented-label {
+  position: relative;
 }
 
 .word-columns {
@@ -2337,6 +2363,59 @@ textarea.inline-edit.mine-edit {
 
 @media (hover: hover) {
   .bulk-btn:not(:disabled):hover {
+    background: var(--hover);
+  }
+}
+
+/* "Mark as": the three levels open in a small menu above the bar */
+.bulk-level {
+  position: relative;
+}
+
+.bulk-chevron {
+  color: var(--ink-3);
+}
+
+.bulk-btn[aria-expanded='true'] {
+  background: var(--hover);
+}
+
+.bulk-menu {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  translate: -50% 0;
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+  padding: 6px;
+  border: 1px solid color-mix(in oklch, var(--line) 55%, transparent);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow:
+    2px 3px 0 color-mix(in oklch, var(--line) 18%, transparent),
+    0 12px 30px -12px color-mix(in oklch, var(--line) 40%, transparent);
+}
+
+.bulk-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .bulk-menu button:hover {
     background: var(--hover);
   }
 }

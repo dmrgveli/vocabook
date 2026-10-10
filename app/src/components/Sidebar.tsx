@@ -1,11 +1,10 @@
 import { motion } from 'motion/react'
 import { BookOpen, History, Orbit, Plus, Search } from 'lucide-react'
-import { useMemo, type CSSProperties, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { bandOfWord, K_BANDS, useLevelsReady } from '../data/levels'
-import { EXPOSURE_LABELS, EXPOSURE_LEVELS, exposureLevel, type ExposureLevel } from '../data/exposure'
-import type { Entry } from '../data/model'
+import { MASTERY_LABELS, MASTERY_LEVELS, type Entry } from '../data/model'
 import { useIsMobile } from './MobileBar'
 import { SidebarAccount } from './SyncStatus'
 import { allSources, type Filters } from '../data/notebook'
@@ -27,14 +26,13 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
 
   const counts = useMemo(() => {
     const band = new Map<string, number>()
-    const exposure = new Map<ExposureLevel, number>()
+    const mastery = new Map<string, number>()
     for (const e of entries) {
       const b = bandOfWord(e.word)
       if (b) band.set(b, (band.get(b) ?? 0) + 1)
-      const x = exposureLevel(e)
-      exposure.set(x, (exposure.get(x) ?? 0) + 1)
+      mastery.set(e.mastery, (mastery.get(e.mastery) ?? 0) + 1)
     }
-    return { band, exposure }
+    return { band, mastery }
   }, [entries, levelsReady])
   const sources = useMemo(() => allSources(entries).slice(0, 8), [entries])
   const due = useMemo(() => dueEntries(entries).length, [entries])
@@ -97,15 +95,15 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
             ))}
           </FilterGroup>
 
-          <FilterGroup title="Exposure">
-            {EXPOSURE_LEVELS.filter((l) => counts.exposure.has(l) || filters.exposure === l).map((l) => (
+          <FilterGroup title="Mastery">
+            {MASTERY_LEVELS.map((m) => (
               <FilterItem
-                key={l}
-                active={filters.exposure === l}
-                onClick={() => toggle('exposure', l)}
-                marker={<span className="dot exposure-dot" style={{ '--level': l } as CSSProperties} />}
-                label={EXPOSURE_LABELS[l]}
-                count={counts.exposure.get(l) ?? 0}
+                key={m}
+                active={filters.mastery === m}
+                onClick={() => toggle('mastery', m)}
+                marker={<span className="dot" style={{ background: `var(--mastery-${m})`, borderColor: `var(--mastery-${m})` }} />}
+                label={MASTERY_LABELS[m]}
+                count={counts.mastery.get(m) ?? 0}
               />
             ))}
           </FilterGroup>

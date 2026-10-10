@@ -52,7 +52,7 @@ describe('activity', () => {
 
 describe('achievements', () => {
   it('reports progress capped at the goal', () => {
-    const words = Array.from({ length: 12 }, (_, i) => ({ ...createEntry({ word: `w${i}` }), views: i < 2 ? 50 : 0 }))
+    const words = Array.from({ length: 12 }, (_, i) => ({ ...createEntry({ word: `w${i}` }), mastery: i < 2 ? ('use' as const) : ('recognize' as const) }))
     const list = achievements(stats(words, (w) => w === 'w0'))
     const byId = Object.fromEntries(list.map((a) => [a.id, a]))
     expect(byId['first-word']).toMatchObject({ value: 1, goal: 1 })

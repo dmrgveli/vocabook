@@ -4,8 +4,8 @@
 export const MASTERY_LEVELS = ['recognize', 'understand', 'use'] as const
 export type Mastery = (typeof MASTERY_LEVELS)[number]
 
-// No longer shown or set: exposure (data/exposure.ts) took its place. The field stays for sync
-// and old data, and an old self-rating still counts towards a word's exposure.
+// The stored values stay recognize/understand/use (sync, old data); only the labels changed.
+// Seen it → Know it also happens on its own after Flashback (data/flashback.ts earnsKnowIt); Use it is only ever set by hand.
 export const MASTERY_LABELS: Record<Mastery, string> = {
   recognize: 'Seen it',
   understand: 'Know it',
@@ -121,6 +121,8 @@ export interface Entry extends Syncable {
   notes: MarginNote[]
   tags: string[]
   mastery: Mastery
+  /** When the level was last set by hand; Flashback rounds before it don't count towards Know it. */
+  masteryAt?: Timestamp
   enrichment?: Enrichment
   lastViewedAt?: Timestamp
   /** How many times the word was looked at (its page, a reminder); like lastViewedAt it doesn't touch updatedAt. */

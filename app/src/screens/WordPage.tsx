@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { EditableText } from '../components/EditableText'
-import { ExposureMeter, SpeakButton } from '../components/ui'
-import { EXPOSURE_LABELS, exposureLevel, exposureSummary } from '../data/exposure'
+import { MasteryControl, SpeakButton } from '../components/ui'
+import { activitySummary } from '../data/activity'
 import { deleteEntry, markViewed, updateEntry } from '../data/db'
-import { alive, type Entry } from '../data/model'
+import { alive, now, type Entry } from '../data/model'
 import { parseWordParam, wordPath } from '../data/paths'
 import { useEntryAt } from '../hooks'
 import { Dictionary } from './word/DictionaryPanels'
@@ -89,6 +89,7 @@ function WordPageContent({ entry }: { entry: Entry }) {
   const update: Update = (change) => updateEntry(entry.id, change)
   const e = entry.enrichment
   const [videosOpen, setVideosOpen] = useState(false)
+  const activity = activitySummary(entry)
 
   async function remove() {
     if (!confirm(`Remove “${entry.word}” from your notebook?`)) return
@@ -107,10 +108,11 @@ function WordPageContent({ entry }: { entry: Entry }) {
           <MyWords entry={entry} update={update} />
         </div>
         <div className="word-hero-side">
-          <span className="word-exposure" title="Exposure: it grows each time you open the word, meet it somewhere new, practise it or write about it">
-            <ExposureMeter entry={entry} /> {EXPOSURE_LABELS[exposureLevel(entry)]}
+          <span className="label-sm" title="Seen it moves to Know it by itself once you remember the word in Flashback on two different days">
+            How well do you know it?
           </span>
-          <span className="faint">{exposureSummary(entry)}</span>
+          <MasteryControl value={entry.mastery} onChange={(m) => update((x) => ({ ...x, mastery: m, masteryAt: now() }))} />
+          {activity && <span className="faint">{activity}</span>}
           <span className="faint">Added {formatDate(entry.createdAt)}</span>
           <span className="faint" title="Spaced repetition: when Flashback will bring it back">Next review {whenLabel(scheduleOf(entry).due)}</span>
         </div>

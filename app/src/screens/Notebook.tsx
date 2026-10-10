@@ -1,19 +1,18 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowUpDown, BookOpenText, Check, History, LayoutGrid, List, ListChecks, NotebookText, Plus, Rows3, Search, Trash2, X } from 'lucide-react'
+import { ArrowUpDown, ChevronUp, Gauge, BookOpenText, Check, History, LayoutGrid, List, ListChecks, NotebookText, Plus, Rows3, Search, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { useSuggestions } from '../hooks'
 import { MOD_KEY } from '../components/Sidebar'
-import { ExposureMeter, KBadge, SpeakButton, toneClass } from '../components/ui'
+import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
 import { GuestWordsOffer } from '../components/GuestWords'
 import { useWordPreview, WordPreview } from '../components/WordPreview'
 import { RuledPage, selectHandlers } from './notebook/RuledPage'
 import { restoreEntries, updateEntries } from '../data/db'
 import { FLASHBACK_MIN_WORDS } from '../data/flashback'
 import { bandOfWord, K_BANDS, levelOf, MAX_LEVEL, useLevelsReady } from '../data/levels'
-import { EXPOSURE_LABELS, type ExposureLevel } from '../data/exposure'
-import { metEncounters, normalizeWord, type Entry } from '../data/model'
+import { metEncounters, MASTERY_LABELS, MASTERY_LEVELS, normalizeWord, now, type Entry, type Mastery } from '../data/model'
 import { lookPath, wordPath } from '../data/paths'
 import { dueEntries } from '../data/srs'
 import {
@@ -65,8 +64,8 @@ function groupTitle(group: GroupKey, key: string): string {
       return key || 'No source'
     case 'level':
       return K_BANDS.find((b) => b.id === key)?.label ?? 'Level unknown'
-    case 'exposure':
-      return EXPOSURE_LABELS[Number(key) as ExposureLevel]
+    case 'mastery':
+      return MASTERY_LABELS[key as Mastery]
     default:
       return ''
   }
@@ -106,9 +105,9 @@ function useNotebookView(): [NotebookView, (v: NotebookView) => void] {
   const [view, setViewState] = useState<NotebookView>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null')
-      // self-rated mastery became exposure (10 Oct 2026)
-      if (saved?.sort === 'least-known') saved.sort = 'least-exposed'
-      if (saved?.group === 'mastery') saved.group = 'exposure'
+      // exposure briefly replaced the level (10 Oct 2026) and was taken back the same day
+      if (saved?.sort === 'least-exposed') saved.sort = 'least-known'
+      if (saved?.group === 'exposure') saved.group = 'mastery'
       const valid = saved && SORTS.some((s) => s.id === saved.sort) && GROUPS.some((g) => g.id === saved.group)
       return valid ? { sort: saved.sort, group: saved.group, layout: savedLayout(saved) } : DEFAULT_VIEW
     } catch {
@@ -170,9 +169,11 @@ export function Notebook({ entries }: { entries: Entry[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const lastPicked = useRef<string>(undefined)
   const order = useMemo(() => (view.layout === 'cards' ? pages : ruledGroups).flatMap((g) => g.entries.map((e) => e.id)), [pages, ruledGroups, view.layout])
+  const [levelMenu, setLevelMenu] = useState(false)
   const stopSelecting = () => {
     setSelecting(false)
     setSelected(new Set())
+    setLevelMenu(false)
   }
   const selection = selecting
     ? {
@@ -206,6 +207,12 @@ export function Notebook({ entries }: { entries: Entry[] }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [selecting, order])
   const ids = [...selected]
+  const setMasteryAll = async (m: Mastery) => {
+    setLevelMenu(false)
+    const t = now()
+    await updateEntries(ids, (e) => ({ ...e, mastery: m, masteryAt: t }))
+    toast(`${ids.length} ${ids.length === 1 ? 'word' : 'words'}: ${MASTERY_LABELS[m]}`)
+  }
   const removeAll = async () => {
     const t = new Date().toISOString()
     await updateEntries(ids, (e) => ({ ...e, deletedAt: t }))
@@ -230,7 +237,7 @@ export function Notebook({ entries }: { entries: Entry[] }) {
 
   const activeChips = [
     filters.band && { key: 'band', label: K_BANDS.find((b) => b.id === filters.band)!.label },
-    filters.exposure && { key: 'exposure', label: EXPOSURE_LABELS[filters.exposure] },
+    filters.mastery && { key: 'mastery', label: MASTERY_LABELS[filters.mastery] },
     filters.source && { key: 'source', label: filters.source },
   ].filter(Boolean) as { key: keyof typeof filters; label: string }[]
 
@@ -385,12 +392,28 @@ export function Notebook({ entries }: { entries: Entry[] }) {
         {selecting && (
           <motion.div className="bulk-bar" role="toolbar" aria-label="Selected words" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }}>
             <span className="bulk-count" aria-live="polite">
-              <b>{selected.size}</b> selected
+              <b>{selected.size}</b> <span className="bulk-count-text">selected</span>
             </span>
             <button className="bulk-btn" onClick={() => setSelected(new Set(selected.size === order.length ? [] : order))}>
               {selected.size === order.length ? 'None' : 'All'}
             </button>
             <span className="bulk-sep" />
+            <span className="bulk-level">
+              <button className="bulk-btn" aria-haspopup="menu" aria-expanded={levelMenu} disabled={!selected.size} onClick={() => setLevelMenu((o) => !o)}>
+                <Gauge size={15} /> Mark as <ChevronUp size={13} className="bulk-chevron" />
+              </button>
+              <AnimatePresence>
+                {levelMenu && selected.size > 0 && (
+                  <motion.span className="bulk-menu" role="menu" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}>
+                    {MASTERY_LEVELS.map((m) => (
+                      <button key={m} role="menuitem" onClick={() => void setMasteryAll(m)}>
+                        <MasteryMeter level={m} /> {MASTERY_LABELS[m]}
+                      </button>
+                    ))}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </span>
             <button className="bulk-btn" disabled={!selected.size || entries.length < FLASHBACK_MIN_WORDS} onClick={() => navigate('/flashback', { state: { practice: ids } })}>
               <History size={15} /> Practice
             </button>
@@ -473,7 +496,7 @@ function WordCard({ entry }: { entry: Entry }) {
           {source}
           {encounters > 1 && <span className="encounter-count">×{encounters}</span>}
         </span>
-        <ExposureMeter entry={entry} />
+        <MasteryMeter level={entry.mastery} />
       </div>
     </article>
   )

@@ -124,7 +124,7 @@ function ProfileContent({ entries, onClose }: { entries: Entry[]; onClose: () =>
       <section className="profile-stats">
         <Stat icon={<BookOpen size={15} />} value={s.words} label="words" />
         <Stat icon={<Sparkles size={15} />} value={s.thisWeek} label="this week" />
-        <Stat icon={<Award size={15} />} value={s.familiar} label="familiar" />
+        <Stat icon={<Award size={15} />} value={s.inUse} label="in use" />
         <Stat icon={<Repeat size={15} />} value={s.metAgain} label="met again" />
       </section>
 

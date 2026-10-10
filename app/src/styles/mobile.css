@@ -365,8 +365,11 @@
   }
 
   .word-hero-side {
-    align-items: flex-start;
-    gap: 4px;
+    align-items: stretch;
+  }
+
+  .segmented {
+    width: 100%;
   }
 
   .word-columns {
@@ -533,16 +536,22 @@
   .bulk-bar {
     bottom: calc(80px + env(safe-area-inset-bottom));
     height: 46px;
-    padding: 0 4px 0 14px;
+    padding: 0 4px 0 12px;
   }
 
   .bulk-btn {
-    padding: 0 9px;
+    padding: 0 8px;
   }
 
   /* words only on a phone, so the whole bar fits */
-  .bulk-btn:not(.bulk-close) svg {
+  .bulk-btn:not(.bulk-close) svg,
+  .bulk-count-text {
     display: none;
+  }
+
+  .bulk-menu {
+    left: 0;
+    translate: none;
   }
 
   .bulk-sep {

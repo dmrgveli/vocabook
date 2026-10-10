@@ -741,3 +741,26 @@
   color: var(--ink);
   text-decoration: none;
 }
+
+/* words that moved up to Know it after this round */
+.flash-promoted {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 14px 0 0;
+}
+
+.flash-promoted a {
+  color: inherit;
+  font-size: 17px;
+}
+
+.flash-promoted .btn {
+  margin-left: auto;
+  color: inherit;
+}
+
+.flash-promoted-icon {
+  flex: none;
+}

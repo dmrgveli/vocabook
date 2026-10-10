@@ -1,6 +1,5 @@
 import { levelOf } from './levels'
-import { exposureLevel } from './exposure'
-import { alive, createEncounter, isPractice, metEncounters, now, type Entry } from './model'
+import { alive, createEncounter, isPractice, metEncounters, now, type Entry, type Mastery } from './model'
 
 // Flashback: a short round of recall with your own words, back in the moment you met them.
 //
@@ -185,8 +184,8 @@ function meaningChoices(entry: Entry, all: Entry[], random: Random, commonness: 
 /** How many finished rounds a word has been in. */
 export const practiceCount = (entry: Entry) => alive(entry.encounters).filter(isPractice).length
 
-/** Words you've spent less time with come up a little more often: 1 for a word just met … 0.6 for an old friend. */
-const exposureWeight = (e: Entry) => 1.1 - 0.1 * exposureLevel(e)
+/** Words you know less well come up a little more often. */
+const MASTERY_WEIGHT: Record<Mastery, number> = { recognize: 1, understand: 0.8, use: 0.6 }
 
 /**
  * Random words for a round, weighted towards words that were in fewer rounds
@@ -197,7 +196,7 @@ export function pickFlashbackWords(entries: Entry[], size: number, random: Rando
   return entries
     .filter((e) => !e.deletedAt)
     .map((e) => {
-      const weight = exposureWeight(e) / (1 + practiceCount(e)) ** 2
+      const weight = MASTERY_WEIGHT[e.mastery] / (1 + practiceCount(e)) ** 2
       return { e, key: Math.pow(random() || Number.MIN_VALUE, 1 / weight) }
     })
     .sort((a, b) => b.key - a.key)
@@ -320,6 +319,32 @@ export function withPracticeRecord(entry: Entry, result: RoundResult, sentence?:
   const drop = new Set(practice.slice(0, Math.max(0, practice.length - MAX_PRACTICE_RECORDS)).map((e) => e.id))
   const t = now()
   return { ...entry, encounters: encounters.map((e) => (drop.has(e.id) ? { ...e, deletedAt: t, updatedAt: t } : e)) }
+}
+
+/* ---------- Seen it → Know it ---------- */
+
+/** Remembered the first time on this many different days: the word moves up to Know it. */
+export const KNOW_IT_DAYS = 2
+
+/**
+ * Whether a word has earned Know it on its own. Only Seen it moves, and only up: whether you
+ * use a word in your own life is yours to say. Rounds before you last set the level by hand
+ * don't count, so a level you lowered stays until there is new evidence.
+ */
+export function earnsKnowIt(entry: Entry): boolean {
+  if (entry.mastery !== 'recognize') return false
+  const since = entry.masteryAt ?? ''
+  const days = alive(entry.encounters)
+    .filter(isPractice)
+    .filter((p) => p.createdAt > since && RESULT_BY_LABEL.get(p.source) === 'first-try')
+    .map((p) => new Date(p.createdAt).toDateString())
+  return new Set(days).size >= KNOW_IT_DAYS
+}
+
+/** A finished round on the word's timeline, and Know it if the word has now earned it. */
+export function afterRound(entry: Entry, result: RoundResult): Entry {
+  const next = withPracticeRecord(entry, result)
+  return earnsKnowIt(next) ? { ...next, mastery: 'understand' } : next
 }
 
 /* ---------- history ---------- */

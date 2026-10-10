@@ -302,33 +302,22 @@ button.chip:hover {
   background: var(--fill, var(--card));
 }
 
-/* the sidebar's exposure filter: an ink dot that darkens with the level */
-.dot.exposure-dot {
-  border-color: var(--ink-3);
-  background: color-mix(in oklch, var(--ink-2) calc(var(--level) * 20%), transparent);
-}
-
-/* exposure: five small ink dots, filled up to the level; meant to be noticed, not to stand out */
-.exposure-meter {
+.mastery-meter {
   display: inline-flex;
-  align-items: center;
   gap: 3px;
-  color: var(--ink-3);
 }
 
-.exposure-meter span {
-  width: 6px;
+.mastery-meter span {
+  width: 14px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: 99px;
   border: 1.2px solid currentColor;
-  opacity: 0.45;
+  opacity: 0.35;
 }
 
-.exposure-meter[data-level='1'] span:nth-child(-n + 1),
-.exposure-meter[data-level='2'] span:nth-child(-n + 2),
-.exposure-meter[data-level='3'] span:nth-child(-n + 3),
-.exposure-meter[data-level='4'] span:nth-child(-n + 4),
-.exposure-meter[data-level='5'] span {
+.mastery-meter[data-level='recognize'] span:nth-child(1),
+.mastery-meter[data-level='understand'] span:nth-child(-n + 2),
+.mastery-meter[data-level='use'] span {
   background: currentColor;
   opacity: 1;
 }

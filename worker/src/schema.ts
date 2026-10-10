@@ -62,6 +62,7 @@ function entry(v: unknown) {
   str(v, 'ownSentence', MAX_TEXT, true)
   str(v, 'lastViewedAt', 40, true)
   num(v, 'views')
+  str(v, 'masteryAt', 40, true)
   if (!['recognize', 'understand', 'use'].includes(v.mastery as string)) throw new SchemaError('Invalid mastery')
   arr(v, 'encounters', MAX_CHILDREN).forEach(encounter)
   arr(v, 'notes', MAX_CHILDREN).forEach(note)

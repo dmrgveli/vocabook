@@ -35,7 +35,7 @@ describe('sortEntries', () => {
   })
 
   it('puts the least known and the longest unseen first', () => {
-    expect(words(sortEntries(all, 'least-exposed', levelOf))).toEqual(['hashtag', 'nuance', 'grasp', 'thrive'])
+    expect(words(sortEntries(all, 'least-known', levelOf))).toEqual(['hashtag', 'nuance', 'grasp', 'thrive'])
     expect(words(sortEntries(all, 'unseen', levelOf))).toEqual(['hashtag', 'grasp', 'nuance', 'thrive'])
   })
 })
@@ -50,11 +50,11 @@ describe('groupEntries', () => {
     ])
   })
 
-  it('groups by source, level band and exposure in a natural order', () => {
+  it('groups by source, level band and mastery in a natural order', () => {
     const sorted = sortEntries(all, 'newest', levelOf)
     expect(groupEntries(sorted, 'source', bandOf).map((g) => g.key)).toEqual(['Show', 'Book', 'Podcast'])
     expect(groupEntries(sorted, 'level', bandOf).map((g) => g.key)).toEqual(['k3', 'k5', 'k10', 'unknown'])
-    expect(groupEntries(sorted, 'exposure', bandOf).map((g) => g.key)).toEqual(['1', '2'])
+    expect(groupEntries(sorted, 'mastery', bandOf).map((g) => g.key)).toEqual(['recognize', 'understand', 'use'])
     expect(groupEntries(sorted, 'none', bandOf)).toEqual([{ key: 'all', entries: sorted }])
   })
 })
