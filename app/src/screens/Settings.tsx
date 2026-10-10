@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { BellRing, Check, ChevronDown, Clapperboard, Cloud, Database, ExternalLink, Info, Monitor, Moon, Palette, RefreshCw, Sun, Volume2 } from 'lucide-react'
+import { BellRing, Check, ChevronDown, Clapperboard, Cloud, Database, ExternalLink, Info, Monitor, Moon, Palette, RefreshCw, Sun, Volume2, MessageSquareHeart } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
 import { setWordSource, useWordSource, type WordSource } from '../api/corpus'
 import { enrichEntry } from '../api/enrich'
 import { useAppState } from '../app/state'
 import { AccountCard } from '../components/AccountCard'
+import { FeedbackSettings } from '../components/FeedbackSettings'
 import { isEnrichmentCurrent, type Entry } from '../data/model'
 import { REMINDER_MIN_WORDS, setRemindersEnabled, useRemindersEnabled } from '../data/reminders'
 import { canSpeak, setSpeechPrefs, speak, useEnglishVoices, useSpeechPrefs } from '../speech'
@@ -22,6 +23,7 @@ const SECTIONS = [
   { id: 'reminders', label: 'Reminders', icon: <BellRing size={17} /> },
   { id: 'videos', label: 'Videos', icon: <Clapperboard size={17} /> },
   { id: 'data', label: 'Your data', icon: <Database size={17} /> },
+  { id: 'feedback', label: 'Feedback', icon: <MessageSquareHeart size={17} /> },
   { id: 'about', label: 'About', icon: <Info size={17} /> },
 ] as const
 
@@ -95,6 +97,8 @@ function SectionBody({ id, entries }: { id: SectionId; entries: Entry[] }) {
       return <VideoSettings />
     case 'data':
       return <DataSettings entries={entries} />
+    case 'feedback':
+      return <FeedbackSettings />
     case 'about':
       return <About />
   }
@@ -477,7 +481,7 @@ function About() {
         ))}
 
         <p className="faint small">
-          Open source on{' '}
+          Source code on{' '}
           <a href={SOURCE_CODE} target="_blank" rel="noreferrer">
             GitHub
           </a>

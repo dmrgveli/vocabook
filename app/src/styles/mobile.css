@@ -235,11 +235,6 @@
     height: 22px;
   }
 
-  /* the notebook header's Flashback button: the bar has one already */
-  .flashback-cta {
-    display: none;
-  }
-
   .update-banner {
     left: 16px;
     right: 16px;
@@ -524,6 +519,64 @@
     flex: 1;
     width: auto;
     min-width: 0;
+    max-width: none;
+  }
+
+  /* select mode: the toggle joins the sort row, the bar sits above the tab bar */
+  .select-toggle {
+    order: 0;
+    flex: none;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .select-toggle .select-text {
+    display: none;
+  }
+
+  /* one row that scrolls sideways, so the words above stay visible */
+  .bulk-bar {
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    width: calc(100vw - 24px);
+    padding: 6px 8px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .bulk-bar > * {
+    flex: none;
+  }
+
+  .bulk-sep {
+    display: none;
+  }
+
+  .select-mark {
+    left: -9px;
+  }
+
+  /* word page section bar: under the top bar, sideways scrolling links */
+  .section-nav {
+    top: calc(56px + env(safe-area-inset-top));
+    margin: 4px -16px 12px;
+    padding: 8px 16px;
+    gap: 10px;
+  }
+
+  .section-nav-word {
+    font-size: 20px;
+  }
+
+  .section-nav.is-compact .section-nav-word {
+    max-width: 40vw;
+  }
+
+  .word-page [data-section] {
+    scroll-margin-top: calc(120px + env(safe-area-inset-top));
   }
 
   /* ---------- the ruled notebook page ---------- */
@@ -726,6 +779,10 @@
 
   /* ---------- flashback ---------- */
 
+  .flash-start-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .page-header:has(.flashback-cta) > p {
     margin-left: 0;
   }
@@ -835,7 +892,8 @@
 
   .pool-stage {
     height: min(58vh, 430px);
-    touch-action: none;
+    /* one finger up/down scrolls the page as anywhere else; sideways turns, two fingers zoom */
+    touch-action: pan-y;
   }
 
   .pool-center {

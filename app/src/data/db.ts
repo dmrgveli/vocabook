@@ -210,3 +210,31 @@ export async function markViewed(id: string): Promise<void> {
   if (!entry) return
   await (await db()).put('entries', { ...entry, lastViewedAt: now() })
 }
+
+/** Changes several entries in one go (bulk actions); one notification for all of them. */
+export async function updateEntries(ids: string[], change: (entry: Entry) => Entry): Promise<void> {
+  if (ids.length === 0) return
+  const tx = (await db()).transaction('entries', 'readwrite')
+  const t = now()
+  for (const id of ids) {
+    const entry = await tx.store.get(id)
+    if (entry && !entry.deletedAt) await tx.store.put({ ...change(entry), updatedAt: t })
+  }
+  await tx.done
+  notify()
+}
+
+/** Undoes a delete: the tombstone is lifted (with a new updatedAt, so sync brings the word back everywhere). */
+export async function restoreEntries(ids: string[]): Promise<void> {
+  const tx = (await db()).transaction('entries', 'readwrite')
+  const t = now()
+  for (const id of ids) {
+    const entry = await tx.store.get(id)
+    if (entry?.deletedAt) {
+      const { deletedAt: _, ...alive } = entry
+      await tx.store.put({ ...alive, updatedAt: t })
+    }
+  }
+  await tx.done
+  notify()
+}

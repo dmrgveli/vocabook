@@ -114,6 +114,10 @@ function fakeBucket() {
     async delete(key: string) {
       store.delete(key)
     },
+    async list({ prefix = '', limit = 1000 }: { prefix?: string; limit?: number } = {}) {
+      const keys = [...store.keys()].filter((k) => k.startsWith(prefix)).sort().slice(0, limit)
+      return { objects: keys.map((key) => ({ key })) }
+    },
   }
 }
 
@@ -296,5 +300,51 @@ describe('word data (Sketch Engine)', () => {
     const today = new Date().toISOString().slice(0, 10)
     await bucket.put(`cache/ske/v1/budget/${today}.json`, JSON.stringify({ n: DAILY_BUDGET }))
     expect((await get('/v1/word?lemma=linger', env(), fetcher)).status).toBe(503)
+  })
+})
+
+describe('feedback', () => {
+  const bucket = fakeBucket()
+  const env = { BUCKET: bucket as unknown as R2Bucket, GOOGLE_CLIENT_ID: CLIENT_ID, SESSION_SECRET: SECRET, ALLOWED_ORIGINS: ORIGIN, ADMIN_SUBS: '111, 222' } as Env
+  const call = (method: string, body?: unknown, token?: string, path = '/v1/feedback', origin: string | null = ORIGIN) => {
+    const headers: Record<string, string> = {}
+    if (origin) headers.origin = origin
+    if (token) headers.authorization = `Bearer ${token}`
+    return handle(new Request(`https://sync.example${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }), env, fetchKeys)
+  }
+
+  it('takes feedback from the app without sign-in, keeps nothing identifying, and lets only admins read it', async () => {
+    expect((await call('POST', { kind: 'idea', message: 'Hi' }, undefined, '/v1/feedback', null)).status).toBe(403)
+    expect((await call('POST', { kind: 'nope', message: 'Hi' })).status).toBe(400)
+    expect((await call('POST', { kind: 'idea', message: ' ' })).status).toBe(400)
+    expect((await call('POST', { kind: 'idea', message: 'x'.repeat(2001) })).status).toBe(400)
+    expect((await call('POST', { kind: 'problem', message: 'The rings overlap', device: 'phone', page: '/rings' })).status).toBe(200)
+    await new Promise((r) => setTimeout(r, 5)) // newest first is by time
+    const user = (await issueSession('999', SECRET)).token
+    expect((await call('POST', { kind: 'idea', message: 'Leaderboard please' }, user)).status).toBe(200)
+
+    expect((await call('GET')).status).toBe(403)
+    expect((await call('GET', undefined, user)).status).toBe(403)
+    const admin = (await issueSession('222', SECRET)).token
+    const res = await call('GET', undefined, admin)
+    expect(res.status).toBe(200)
+    const { items } = (await res.json()) as { items: { id: string; message: string; signedIn: boolean }[] }
+    expect(items.map((i) => [i.message, i.signedIn])).toEqual([
+      ['Leaderboard please', true],
+      ['The rings overlap', false],
+    ])
+    expect(JSON.stringify(items)).not.toContain('999')
+
+    expect((await call('DELETE', undefined, user, `/v1/feedback?id=${items[0].id}`)).status).toBe(403)
+    expect((await call('DELETE', undefined, admin, `/v1/feedback?id=${items[0].id}`)).status).toBe(200)
+    expect((await call('DELETE', undefined, admin, '/v1/feedback?id=../users')).status).toBe(400)
+    const after = (await (await call('GET', undefined, admin)).json()) as { items: unknown[] }
+    expect(after.items).toHaveLength(1)
+  })
+
+  it('stops at the daily cap', async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    await bucket.put(`feedback/count/${today}.json`, JSON.stringify({ n: 300 }))
+    expect((await call('POST', { kind: 'other', message: 'one more' })).status).toBe(429)
   })
 })

@@ -1,4 +1,4 @@
-import { BookOpen, History, Menu, Plus, Search, Settings, UserRound, X } from 'lucide-react'
+import { BookOpen, Menu, Orbit, Plus, Search, Settings, UserRound, X } from 'lucide-react'
 import { Avatar } from './ui'
 import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
@@ -41,7 +41,8 @@ export function MobileBar({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () 
 
 /**
  * Bottom navigation on small screens, within thumb reach: Notebook, Search, a larger Add
- * in the middle, Flashback and Profile. Hidden on desktop by CSS.
+ * in the middle, Word rings and Profile. Hidden on desktop by CSS. (Flashback is in the
+ * notebook's header and the menu.)
  */
 export function MobileTabBar() {
   const auth = useAuth()
@@ -67,9 +68,9 @@ export function MobileTabBar() {
         </span>
         <span>Add</span>
       </button>
-      <NavLink to="/flashback" className="tab" data-active={!overlay && pathname === '/flashback'}>
-        <History size={21} />
-        <span>Flashback</span>
+      <NavLink to="/rings" className="tab" data-active={!overlay && pathname.startsWith('/rings')}>
+        <Orbit size={21} />
+        <span>Rings</span>
       </NavLink>
       <button className="tab" data-active={profileOpen} onClick={() => setProfileOpen(true)} aria-label="Your profile">
         {user ? <Avatar user={user} className="tab-avatar" /> : <UserRound size={21} />}

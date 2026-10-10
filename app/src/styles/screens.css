@@ -49,22 +49,26 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 400px;
+  /* shrinks before the row wraps: the sort, group and layout controls stay on one line */
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 420px;
   height: 42px;
   padding: 0 12px 0 14px;
   border-radius: 999px;
   border: 1.5px solid var(--line);
   background: var(--card);
-  transition: width 0.3s var(--ease), box-shadow 0.15s;
+  transition: max-width 0.3s var(--ease), box-shadow 0.15s;
 }
 
 .search:focus-within {
-  width: 500px;
+  max-width: 520px;
   box-shadow: var(--pop);
 }
 
 .search input {
   flex: 1;
+  width: 100%;
   min-width: 0;
   border: 0;
   outline: none;
@@ -2148,4 +2152,325 @@ textarea.inline-edit.mine-edit {
   font-size: 28px;
   font-weight: 400;
   line-height: 1;
+}
+
+.more-words {
+  padding: 18px 0 8px;
+  text-align: center;
+}
+
+/* ---------- notebook: select mode (bulk actions) ---------- */
+
+.select-toggle {
+  order: 11; /* desktop: after the layout toggle, at the end of the toolbar */
+  height: 42px;
+}
+
+/* narrower desktop windows: the select toggle is just its icon, so the toolbar stays one row */
+@media (min-width: 900px) and (max-width: 1279px) {
+  .select-toggle {
+    width: 42px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .select-toggle .select-text {
+    display: none;
+  }
+}
+
+.select-toggle.on {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.sheet-selecting .sheet-lines > li,
+.card-select {
+  position: relative;
+  cursor: pointer;
+}
+
+.sheet-selecting .line .speak-btn {
+  pointer-events: auto;
+}
+
+.select-mark {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  left: -11px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+  color: transparent;
+  pointer-events: none;
+}
+
+.card-select .select-mark {
+  top: -8px;
+  left: -8px;
+}
+
+[data-selected='true'] > .select-mark {
+  background: var(--marker);
+  color: var(--marker-ink);
+}
+
+.sheet-lines > li[data-selected='true'] > .line {
+  background: color-mix(in srgb, var(--marker) 28%, transparent);
+}
+
+.card-select[data-selected='true'] .word-card {
+  outline: 3px solid var(--marker);
+  outline-offset: 2px;
+}
+
+.bulk-bar {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  bottom: 22px;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px 8px 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--pop-lg);
+}
+
+.bulk-count {
+  margin-right: 4px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.bulk-count b {
+  font-variant-numeric: tabular-nums;
+}
+
+.bulk-sep {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--line-soft);
+}
+
+.bulk-delete {
+  color: var(--danger);
+}
+
+/* ---------- word page: section bar ---------- */
+
+.section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 6px -40px 14px;
+  padding: 8px 40px;
+  background: var(--paper);
+  border-bottom: 1.5px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.section-nav.is-compact {
+  border-bottom-color: var(--line-soft);
+}
+
+.section-nav.is-empty {
+  display: none;
+}
+
+/* the word slides in once the big heading has scrolled away */
+.section-nav-word {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-size: 24px;
+  white-space: nowrap;
+  transition: max-width 0.3s var(--ease), opacity 0.2s;
+}
+
+.section-nav.is-compact .section-nav-word {
+  max-width: 260px;
+  opacity: 1;
+}
+
+.section-nav-links {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.section-link {
+  flex: none;
+  padding: 4px 12px;
+  border: 1.5px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.section-link:hover {
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.section-link[aria-current='true'] {
+  border-color: var(--line);
+  background: var(--marker);
+  color: var(--marker-ink);
+}
+
+.word-page [data-section] {
+  scroll-margin-top: 70px;
+}
+
+/* ---------- settings: feedback ---------- */
+
+.feedback-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.feedback-kinds .chip[aria-checked='true'] {
+  background: var(--marker);
+  color: var(--marker-ink);
+  border-color: var(--line);
+}
+
+.feedback-text {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  font: inherit;
+}
+
+.feedback-actions {
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.feedback-actions > :first-child {
+  margin-right: auto;
+}
+
+.feedback-sent {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--k1-ink);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.feedback-error {
+  color: var(--danger);
+}
+
+.feedback-maintainer {
+  margin-top: 10px;
+}
+
+.feedback-maintainer code {
+  overflow-wrap: anywhere;
+}
+
+.feedback-inbox {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1.5px solid var(--line-soft);
+}
+
+.feedback-inbox h3 {
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.feedback-inbox ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feedback-item {
+  padding: 10px 12px;
+  border: 1.5px solid var(--line-soft);
+  border-radius: var(--r-m);
+  background: var(--card);
+}
+
+.feedback-item.is-new {
+  border-color: var(--line);
+  box-shadow: var(--pop);
+}
+
+.feedback-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.feedback-meta .icon-btn {
+  margin-left: auto;
+}
+
+.feedback-kind {
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--k3);
+  color: var(--k3-ink);
+}
+
+.feedback-kind.kind-problem {
+  background: var(--rare);
+  color: var(--rare-ink);
+}
+
+.feedback-kind.kind-other {
+  background: var(--unknown);
+  color: var(--unknown-ink);
+}
+
+.feedback-new {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--marker);
+  color: var(--marker-ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.feedback-message {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

@@ -259,6 +259,9 @@ export class PoolEngine {
     }
     if (g.axis === "x") this.t = this.target = g.t - dx / this.p.dragPx;
     else if (g.axis === "y") {
+      // On a touch screen a vertical swipe scrolls the page (touch-action: pan-y); only a
+      // mouse drag zooms. Fingers zoom with a pinch or the +/- buttons.
+      if (this.p.zoom && e.pointerType !== "mouse") return;
       if (this.p.zoom)
         this.level = this.levelT = clamp(g.level - dy / 110, 0, 2);
       else

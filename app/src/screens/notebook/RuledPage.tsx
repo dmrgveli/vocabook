@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   KBadge,
@@ -11,8 +12,10 @@ import { metEncounters, type Entry } from "../../data/model";
 import {
   entrySource,
   lineSentence,
+  searchEntry,
   topPhrases,
   type Group,
+  type SearchField,
 } from "../../data/notebook";
 import { wordPath } from "../../data/paths";
 
@@ -24,13 +27,53 @@ import { wordPath } from "../../data/paths";
 export type Detail = "full" | "brief";
 
 interface Props {
-  groups: Group[];
+  /** total: the group's full size when only part of it is drawn yet */
+  groups: (Group & { total?: number })[];
   detail: Detail;
   /** what the margin says for a group, or nothing when the notebook isn't grouped */
   margin?: (key: string) => { title: string; sub?: string };
   /** labels: day, source…; letters: an index letter (A–Z without groups); plain: a narrow empty margin */
   marginStyle?: "labels" | "letters" | "plain";
   preview: ReturnType<typeof useWordPreview>;
+  /** the notebook search: a line found somewhere other than its word says where */
+  query?: string;
+  /** select mode: clicking a line selects it instead of opening the word */
+  selection?: Selection;
+}
+
+export interface Selection {
+  ids: Set<string>;
+  toggle: (id: string, range: boolean) => void;
+}
+
+/** In select mode a click selects (shift-click: a range) instead of following the link. */
+export function selectHandlers(id: string, selection?: Selection) {
+  if (!selection) return {};
+  return {
+    "data-selected": selection.ids.has(id),
+    onClickCapture: (e: React.MouseEvent) => {
+      if ((e.target as HTMLElement).closest(".speak-btn")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      selection.toggle(id, e.shiftKey);
+    },
+  };
+}
+
+const HINT: Partial<Record<SearchField, string>> = {
+  "my sentence": "found in your sentence",
+  "a note": "found in a note",
+  "where you met it": "found where you met it",
+  "a definition": "found in a definition",
+  "an example": "found in an example",
+  "related words": "found among related words",
+  "a phrase": "found in a phrase",
+};
+
+/** Where the search found a line, when it isn't the word or translation you can already see. */
+function hintFor(entry: Entry, query?: string): string | undefined {
+  const field = query ? searchEntry(entry, query)?.field : undefined;
+  return field ? HINT[field] : undefined;
 }
 
 export function RuledPage({
@@ -39,13 +82,15 @@ export function RuledPage({
   margin,
   marginStyle = margin ? "labels" : "plain",
   preview,
+  query,
+  selection,
 }: Props) {
   return (
     <div
-      className={`sheet sheet-${detail}`}
+      className={`sheet sheet-${detail}${selection ? " sheet-selecting" : ""}`}
       data-margin={marginStyle}
     >
-      {groups.map(({ key, entries }) => {
+      {groups.map(({ key, entries, total = entries.length }) => {
         const label = margin?.(key);
         return (
           <section key={key} className="sheet-group">
@@ -58,7 +103,7 @@ export function RuledPage({
                   )}
                   {marginStyle === "labels" && (
                   <span className="sheet-margin-count">
-                    {entries.length} {entries.length === 1 ? "word" : "words"}
+                    {total} {total === 1 ? "word" : "words"}
                   </span>
                   )}
                 </>
@@ -68,12 +113,18 @@ export function RuledPage({
               {entries.map((e) => (
                 <li
                   key={e.id}
-                  {...(detail === "brief" ? preview.handlers(e) : {})}
+                  {...(detail === "brief" && !selection ? preview.handlers(e) : {})}
+                  {...selectHandlers(e.id, selection)}
                 >
+                  {selection && (
+                    <span className="select-mark" aria-hidden>
+                      <Check size={13} strokeWidth={3} />
+                    </span>
+                  )}
                   {detail === "full" ? (
-                    <FullLine entry={e} />
+                    <FullLine entry={e} hint={hintFor(e, query)} />
                   ) : (
-                    <BriefLine entry={e} />
+                    <BriefLine entry={e} hint={hintFor(e, query)} />
                   )}
                 </li>
               ))}
@@ -108,7 +159,7 @@ function Source({ entry }: { entry: Entry }) {
 }
 
 /** Everything about the word on two or three ruled lines. */
-function FullLine({ entry }: { entry: Entry }) {
+function FullLine({ entry, hint }: { entry: Entry; hint?: string }) {
   const meaning = firstMeaning(entry);
   const definition = firstDefinition(entry);
   const phrases = topPhrases(entry);
@@ -134,6 +185,7 @@ function FullLine({ entry }: { entry: Entry }) {
           )}
           {meaning && <span className="line-pos">{meaning.partOfSpeech}</span>}
         </div>
+        {hint && <span className="line-hit">{hint}</span>}
         <div className="line-meta">
           <Source entry={entry} />
           <MasteryMeter level={entry.mastery} />
@@ -182,7 +234,7 @@ function FullLine({ entry }: { entry: Entry }) {
 }
 
 /** One line per word: the details open when the pointer rests on it. */
-function BriefLine({ entry }: { entry: Entry }) {
+function BriefLine({ entry, hint }: { entry: Entry; hint?: string }) {
   const definition = firstDefinition(entry);
   return (
     <article className={`line line-brief ${toneClass(entry.word)}`}>
@@ -203,6 +255,7 @@ function BriefLine({ entry }: { entry: Entry }) {
         ) : (
           definition
         )}
+        {hint && <span className="line-hit"> · {hint}</span>}
       </span>
       <Source entry={entry} />
       <MasteryMeter level={entry.mastery} />

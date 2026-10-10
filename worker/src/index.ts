@@ -1,6 +1,7 @@
 import { AuthError, verifyGoogleIdToken, type KeyFetcher } from './google'
 import { MAX_BODY_BYTES, SchemaError, validateNotebook } from './schema'
 import { isSessionToken, issueSession, verifySession } from './session'
+import { deleteFeedback, FeedbackError, isAdmin, listFeedback, parseFeedback, storeFeedback } from './feedback'
 import { getDiff, getWord, SketchError, validLemma, validPos } from './sketch'
 
 // Sync API for the notebook.
@@ -11,6 +12,8 @@ import { getDiff, getWord, SketchError, validLemma, validPos } from './sketch'
 //   GET    /v1/compare?a=big&b=large&pos=-j    → how two words are used differently (cached)
 //     (word data needs no sign-in, only a request from the app's own origin; the daily
 //      budget in sketch.ts keeps the account within Sketch Engine's limits)
+//   POST   /v1/feedback  ← feedback from Settings (no sign-in needed; see feedback.ts)
+//   GET    /v1/feedback, DELETE /v1/feedback?id=  → read and tidy it (admins only)
 //   POST   /v1/session   → { token, expires }: trades a Google ID token (or a session
 //                          that is still valid) for a fresh session token
 // Every request carries a Google ID token or a session token issued here; the storage
@@ -25,6 +28,8 @@ export interface Env {
   SKETCH_ENGINE_KEY?: string
   /** Comma-separated list of origins allowed to call the API. */
   ALLOWED_ORIGINS: string
+  /** Comma-separated Google account ids that may read feedback (Worker secret). */
+  ADMIN_SUBS?: string
 }
 
 const objectKey = (sub: string) => `users/${sub}/progress.json`
@@ -90,7 +95,7 @@ export async function handle(
   const { pathname } = new URL(request.url)
 
   if (request.method === 'OPTIONS') return new Response(null, { status: cors['Access-Control-Allow-Origin'] ? 204 : 403, headers: cors })
-  const routes = ['/v1/notebook', '/v1/session', '/v1/word', '/v1/compare']
+  const routes = ['/v1/notebook', '/v1/session', '/v1/word', '/v1/compare', '/v1/feedback']
   if (!routes.includes(pathname)) return json({ error: 'Not found' }, 404, cors)
 
   if (pathname === '/v1/word' || pathname === '/v1/compare') {
@@ -116,13 +121,46 @@ export async function handle(
   }
 
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1]
+  const who = async (): Promise<string> =>
+    isSessionToken(token!) ? (await verifySession(token!, env.SESSION_SECRET)).sub : (await verifyGoogleIdToken(token!, env.GOOGLE_CLIENT_ID, { fetchKeys })).sub
+
+  if (pathname === '/v1/feedback') {
+    if (!cors['Access-Control-Allow-Origin']) return json({ error: 'Forbidden' }, 403, cors)
+    let sender: string | undefined
+    try {
+      sender = token ? await who() : undefined
+    } catch (err) {
+      if (!(err instanceof AuthError)) throw err
+    }
+    try {
+      if (request.method === 'POST') {
+        let body: unknown
+        try {
+          body = JSON.parse(await readLimited(request))
+        } catch {
+          return json({ error: 'Bad JSON' }, 400, cors)
+        }
+        await storeFeedback(env, parseFeedback(body, Boolean(sender)))
+        return json({ ok: true }, 200, cors)
+      }
+      if (!isAdmin(env, sender)) return json({ error: 'Forbidden' }, 403, cors)
+      if (request.method === 'GET') return json({ items: await listFeedback(env) }, 200, cors)
+      if (request.method === 'DELETE') {
+        await deleteFeedback(env, new URL(request.url).searchParams.get('id') ?? '')
+        return json({ ok: true }, 200, cors)
+      }
+      return json({ error: 'Method not allowed' }, 405, cors)
+    } catch (err) {
+      if (err instanceof FeedbackError) return json({ error: err.message }, err.status, cors)
+      throw err
+    }
+  }
+
   if (!token) return json({ error: 'Sign-in required' }, 401, cors)
 
   let sub: string
   try {
-    sub = isSessionToken(token)
-      ? (await verifySession(token, env.SESSION_SECRET)).sub
-      : (await verifyGoogleIdToken(token, env.GOOGLE_CLIENT_ID, { fetchKeys })).sub
+    sub = await who()
   } catch (err) {
     if (err instanceof AuthError) return json({ error: err.message }, 401, cors)
     throw err

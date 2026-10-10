@@ -1,17 +1,19 @@
-import { motion } from 'motion/react'
-import { ArrowRight, ArrowUpDown, BookOpenText, History, LayoutGrid, List, NotebookText, Plus, Rows3, Search, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { ArrowRight, ArrowUpDown, BookOpenText, Check, History, LayoutGrid, List, ListChecks, NotebookText, Plus, Rows3, Search, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { MOD_KEY } from '../components/Sidebar'
 import { KBadge, MasteryMeter, SpeakButton, toneClass } from '../components/ui'
 import { GuestWordsOffer } from '../components/GuestWords'
 import { useWordPreview, WordPreview } from '../components/WordPreview'
-import { RuledPage } from './notebook/RuledPage'
+import { RuledPage, selectHandlers } from './notebook/RuledPage'
+import { restoreEntries, updateEntries } from '../data/db'
 import { FLASHBACK_MIN_WORDS } from '../data/flashback'
 import { bandOfWord, K_BANDS, levelOf, MAX_LEVEL, useLevelsReady } from '../data/levels'
-import { metEncounters, MASTERY_LABELS, normalizeWord, type Entry, type Mastery } from '../data/model'
+import { metEncounters, MASTERY_LABELS, MASTERY_LEVELS, normalizeWord, type Entry, type Mastery } from '../data/model'
 import { lookPath, wordPath } from '../data/paths'
+import { dueEntries } from '../data/srs'
 import {
   EMPTY_FILTERS,
   entrySource,
@@ -20,7 +22,9 @@ import {
   GROUPS,
   hasActiveFilters,
   localDay,
+  rankBySearch,
   sortEntries,
+  takeFirst,
   SORTS,
   type GroupKey,
   type SortKey,
@@ -82,6 +86,8 @@ interface NotebookView {
 }
 
 const VIEW_KEY = 'notebook-view'
+/** How many words are drawn at first, and added each time you near the end. */
+const RENDER_STEP = 120
 const DEFAULT_VIEW: NotebookView = { sort: 'newest', group: 'day', layout: 'page' }
 const LAYOUTS: Layout[] = ['page', 'lines', 'cards']
 
@@ -114,14 +120,15 @@ function useNotebookView(): [NotebookView, (v: NotebookView) => void] {
 }
 
 export function Notebook({ entries }: { entries: Entry[] }) {
-  const { filters, setFilters, openQuickAdd, setLookUpOpen } = useAppState()
+  const { filters, setFilters, openQuickAdd, setLookUpOpen, toast } = useAppState()
+  const navigate = useNavigate()
   const searchRef = useRef<HTMLInputElement>(null)
   // Card colours and the "how common" filter come from the BNC/COCA table, which loads in the background.
   const levelsReady = useLevelsReady()
   const [view, setView] = useNotebookView()
   const preview = useWordPreview()
   const pages = useMemo(
-    () => groupEntries(sortEntries(filterEntries(entries, filters), view.sort, numericLevel), view.group, bandOfWord),
+    () => groupEntries(rankBySearch(sortEntries(filterEntries(entries, filters), view.sort, numericLevel), filters.query), view.group, bandOfWord),
     [entries, filters, view, levelsReady],
   )
   const shown = pages.reduce((n, p) => n + p.entries.length, 0)
@@ -136,6 +143,72 @@ export function Notebook({ entries }: { entries: Entry[] }) {
     }
     return [...byLetter].map(([key, entries]) => ({ key, entries }))
   }, [pages, alphabetical])
+  // Long notebooks are drawn a page at a time: the next words are added before you reach the end.
+  const [limit, setLimit] = useState(RENDER_STEP)
+  useEffect(() => setLimit(RENDER_STEP), [filters, view])
+  const visiblePages = useMemo(() => takeFirst(pages, limit), [pages, limit])
+  const visibleRuled = useMemo(() => takeFirst(ruledGroups, limit), [ruledGroups, limit])
+  const sentinel = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || shown <= limit) return
+    const io = new IntersectionObserver((seen) => seen.some((s) => s.isIntersecting) && setLimit((l) => l + RENDER_STEP), { rootMargin: '1200px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [shown, limit])
+  const dueCount = useMemo(() => dueEntries(entries).length, [entries])
+
+  // Select mode (bulk actions): clicking selects instead of opening; shift-click selects a range.
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const lastPicked = useRef<string>(undefined)
+  const order = useMemo(() => (view.layout === 'cards' ? pages : ruledGroups).flatMap((g) => g.entries.map((e) => e.id)), [pages, ruledGroups, view.layout])
+  const stopSelecting = () => {
+    setSelecting(false)
+    setSelected(new Set())
+  }
+  const selection = selecting
+    ? {
+        ids: selected,
+        toggle: (id: string, range: boolean) => {
+          // read the previous pick now: the state updater below runs later
+          const from = lastPicked.current ? order.indexOf(lastPicked.current) : -1
+          const to = order.indexOf(id)
+          setSelected((cur) => {
+            const next = new Set(cur)
+            if (range && from >= 0 && to >= 0) order.slice(Math.min(from, to), Math.max(from, to) + 1).forEach((x) => next.add(x))
+            else if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+          })
+          lastPicked.current = id
+        },
+      }
+    : undefined
+  useEffect(() => {
+    if (!selecting) return
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as Element | null)?.closest?.('input, textarea, select')) return
+      if (e.key === 'Escape') stopSelecting()
+      else if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault()
+        setSelected(new Set(order))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selecting, order])
+  const ids = [...selected]
+  const setMasteryAll = async (m: Mastery) => {
+    await updateEntries(ids, (e) => ({ ...e, mastery: m }))
+    toast(`${ids.length} ${ids.length === 1 ? 'word' : 'words'}: ${MASTERY_LABELS[m]}`)
+  }
+  const removeAll = async () => {
+    const t = new Date().toISOString()
+    await updateEntries(ids, (e) => ({ ...e, deletedAt: t }))
+    stopSelecting()
+    toast(`${ids.length} ${ids.length === 1 ? 'word' : 'words'} removed`, { label: 'Undo', run: () => void restoreEntries(ids) })
+  }
   const thisWeek = useMemo(() => entries.filter((e) => Date.parse(e.createdAt) > Date.now() - 7 * 864e5).length, [entries])
 
   // "/" focuses search, as in most desktop apps.
@@ -169,8 +242,8 @@ export function Notebook({ entries }: { entries: Entry[] }) {
           {thisWeek > 0 && <> · {thisWeek} this week</>}
         </p>
         {entries.length >= FLASHBACK_MIN_WORDS && (
-          <Link to="/flashback" className="btn flashback-cta">
-            <History size={16} /> Flashback
+          <Link to="/flashback" className="btn flashback-cta" title={dueCount ? `${dueCount} words to review today` : undefined}>
+            <History size={16} /> Flashback {dueCount > 0 && <span className="due-count">{dueCount}</span>}
           </Link>
         )}
       </header>
@@ -206,6 +279,9 @@ export function Notebook({ entries }: { entries: Entry[] }) {
             <LayoutGrid size={16} />
           </button>
         </span>
+        <button className={selecting ? 'btn select-toggle on' : 'btn select-toggle'} aria-pressed={selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))} title="Select words to change several at once">
+          <ListChecks size={16} /> <span className="select-text">{selecting ? 'Done' : 'Select'}</span>
+        </button>
 
         {activeChips.map((c) => (
           <motion.button
@@ -257,28 +333,37 @@ export function Notebook({ entries }: { entries: Entry[] }) {
         <p className="muted no-results">No words in your notebook match.</p>
       ) : view.layout !== 'cards' ? (
         <RuledPage
-          groups={ruledGroups}
+          groups={visibleRuled}
           detail={view.layout === 'page' ? 'full' : 'brief'}
           margin={view.group !== 'none' ? (key) => marginLabel(view.group, key) : alphabetical ? (key) => ({ title: key }) : undefined}
           marginStyle={view.group !== 'none' ? 'labels' : alphabetical ? 'letters' : 'plain'}
           preview={preview}
+          query={filters.query}
+          selection={selection}
         />
       ) : (
-        pages.map(({ key, entries }, pageIndex) => (
+        visiblePages.map(({ key, entries, total }, pageIndex) => (
           <section key={`${view.group}:${key}`} className="day">
             {view.group !== 'none' && (
               <h2 className="day-title">
-                {groupTitle(view.group, key)} <span className="faint">{entries.length}</span>
+                {groupTitle(view.group, key)} <span className="faint">{total}</span>
               </h2>
             )}
             <div className="card-grid">
               {entries.map((e, i) => (
                 <motion.div
                   key={e.id}
+                  className={selecting ? 'card-select' : undefined}
+                  {...selectHandlers(e.id, selection)}
                   initial={{ opacity: 0, y: 10, rotate: i % 2 ? 1.2 : -1.2 }}
                   animate={{ opacity: 1, y: 0, rotate: 0 }}
                   transition={{ type: 'spring', stiffness: 380, damping: 26, delay: Math.min(pageIndex * 0.04 + i * 0.03, 0.35) }}
                 >
+                  {selecting && (
+                    <span className="select-mark" aria-hidden>
+                      <Check size={13} strokeWidth={3} />
+                    </span>
+                  )}
                   <WordCard entry={e} />
                 </motion.div>
               ))}
@@ -286,7 +371,39 @@ export function Notebook({ entries }: { entries: Entry[] }) {
           </section>
         ))
       )}
+      {shown > limit && (
+        <div ref={sentinel} className="faint small more-words">
+          Showing {limit} of {shown} words…
+        </div>
+      )}
       {view.layout === 'lines' && <WordPreview target={preview.target} />}
+      <AnimatePresence>
+        {selecting && (
+          <motion.div className="bulk-bar" role="toolbar" aria-label="Selected words" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }}>
+            <span className="bulk-count">
+              <b>{selected.size}</b> selected
+            </span>
+            <button className="btn btn-quiet small" onClick={() => setSelected(new Set(selected.size === order.length ? [] : order))}>
+              {selected.size === order.length ? 'None' : `All ${order.length}`}
+            </button>
+            <span className="bulk-sep" />
+            {MASTERY_LEVELS.map((m) => (
+              <button key={m} className="btn small" disabled={!selected.size} onClick={() => void setMasteryAll(m)}>
+                {MASTERY_LABELS[m]}
+              </button>
+            ))}
+            <button className="btn small" disabled={!selected.size || entries.length < FLASHBACK_MIN_WORDS} onClick={() => navigate('/flashback', { state: { practice: ids } })}>
+              <History size={14} /> Practice
+            </button>
+            <button className="btn small bulk-delete" disabled={!selected.size} onClick={() => void removeAll()}>
+              <Trash2 size={14} /> Remove
+            </button>
+            <button className="icon-btn" aria-label="Stop selecting" onClick={stopSelecting}>
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

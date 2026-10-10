@@ -1,23 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { suggest, type Suggestion } from './api/datamuse'
-import { findByWord, getEntry, listEntries, subscribe } from './data/db'
+import { findByWord, getEntry, listEntries, subscribe, type ChangeOrigin } from './data/db'
 import { parseWordParam } from './data/paths'
 import type { Entry } from './data/model'
 
-/** All notebook entries; reloads when IndexedDB changes. undefined = loading. */
+// All notebook entries, read once and shared by every component that needs them. Each
+// change used to make every subscriber read the whole notebook again; now one read serves
+// everyone, edits are picked up on the next tick, and the background dictionary fills
+// (many small writes in a row) are batched into one read.
+let entriesSnapshot: Entry[] | undefined
+let entriesStarted = false
+let readSeq = 0
+let readTimer: ReturnType<typeof setTimeout> | undefined
+const entryListeners = new Set<() => void>()
+
+function readEntries() {
+  const seq = ++readSeq
+  listEntries().then((e) => {
+    if (seq !== readSeq) return // a newer read is on its way
+    entriesSnapshot = e
+    entryListeners.forEach((l) => l())
+  })
+}
+
+function scheduleRead(origin: ChangeOrigin) {
+  clearTimeout(readTimer)
+  readTimer = setTimeout(readEntries, origin === 'cache' ? 350 : 0)
+}
+
+function subscribeEntries(listener: () => void) {
+  if (!entriesStarted) {
+    entriesStarted = true
+    subscribe(scheduleRead)
+    readEntries()
+  }
+  entryListeners.add(listener)
+  return () => entryListeners.delete(listener)
+}
+
+/** All notebook entries; updates when IndexedDB changes. undefined = loading. */
 export function useEntries(): Entry[] | undefined {
-  const [entries, setEntries] = useState<Entry[]>()
-  useEffect(() => {
-    let active = true
-    const load = () => listEntries().then((e) => active && setEntries(e))
-    load()
-    const unsubscribe = subscribe(load)
-    return () => {
-      active = false
-      unsubscribe()
-    }
-  }, [])
-  return entries
+  return useSyncExternalStore(subscribeEntries, () => entriesSnapshot)
 }
 
 /** The entry a /word/:param URL points to (by word, or by id for old links). */

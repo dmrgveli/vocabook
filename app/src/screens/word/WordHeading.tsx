@@ -5,7 +5,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary'
 import { KBadge, RecordingButton, SpeakButton } from '../../components/ui'
 import { YouGlishPanel } from '../../components/YouGlishPanel'
 import type { Enrichment } from '../../data/model'
-import { poolPath } from '../../data/paths'
+import { ringsPath } from '../../data/paths'
 
 /** The big word, its stickers and the pronunciation buttons. */
 export function WordHeading({
@@ -42,8 +42,8 @@ export function WordHeading({
             {videosOpen ? 'Hide videos' : 'Hear it used'}
           </button>
           {!word.includes(' ') && (
-            <Link to={poolPath(word)} className="pool-badge" title="See the words around it">
-              <Orbit size={14} strokeWidth={2.5} /> Word pool
+            <Link to={ringsPath(word)} className="pool-badge" title="See the words around it">
+              <Orbit size={14} strokeWidth={2.5} /> Word rings
             </Link>
           )}
         </motion.span>

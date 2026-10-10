@@ -9,6 +9,7 @@ import { useEntryAt } from '../hooks'
 import { DefinitionSkeleton, DictionaryPanels, hasCollocations } from './word/DictionaryPanels'
 import { BackLink, Panel } from './word/Panel'
 import { VideosDrawer, WordHeading } from './word/WordHeading'
+import { SectionNav } from './word/SectionNav'
 
 type LookUpState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; enrichment: Enrichment; frequency?: number }
 
@@ -77,6 +78,8 @@ export function LookUpPage() {
       </header>
 
       <VideosDrawer word={word} open={videosOpen} />
+
+      <SectionNav word={word} />
 
       <div className="word-columns">
         <div className="word-col">

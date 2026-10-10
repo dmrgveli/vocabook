@@ -1,12 +1,13 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowRight, Check, HelpCircle, Plus, RotateCcw, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { KBadge, SpeakButton } from '../components/ui'
 import { markViewed, updateEntry } from '../data/db'
 import {
   buildRound,
+  buildRoundOf,
   clampRoundSize,
   DEFAULT_ROUND_SIZE,
   FLASHBACK_MIN_WORDS,
@@ -22,49 +23,110 @@ import {
 import { FlashbackHistoryButton } from '../components/FlashbackHistory'
 import { MASTERY_LABELS, type Entry } from '../data/model'
 import { wordPath } from '../data/paths'
+import { dueEntries, nextDue, whenLabel } from '../data/srs'
 import { speak } from '../speech'
 
 // Flashback: a short round of recall with your own words (logic in data/flashback.ts).
 // Pick an option → the card flips to the answer → next. Missed words come back once at
 // the end; a finished round is written to each word's timeline.
 
+/** The most cards a review round takes from the due words; the rest wait for the next round. */
+const MAX_REVIEW = 15
+
+type Session = { id: number; size: number; words?: Entry[] }
+
 export function Flashback({ entries }: { entries: Entry[] }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  // words picked in the notebook (bulk "Practice"), passed once through the history state
+  const pickedIds = (location.state as { practice?: string[] } | null)?.practice
   const ask = shouldAskSize(entries.length)
-  const [size, setSize] = useState<number | undefined>(ask ? undefined : DEFAULT_ROUND_SIZE)
-  const [picking, setPicking] = useState(ask)
-  const [roundId, setRoundId] = useState(0)
+  const due = useMemo(() => dueEntries(entries), [entries])
+  const [session, setSession] = useState<Session | undefined>(() => {
+    const picked = pickedIds && entries.filter((e) => pickedIds.includes(e.id))
+    if (picked?.length) return { id: 1, size: picked.length, words: picked }
+    // A small notebook with nothing due starts a short round straight away (as before).
+    return !ask && due.length === 0 && entries.length >= FLASHBACK_MIN_WORDS ? { id: 1, size: DEFAULT_ROUND_SIZE } : undefined
+  })
+  const [picking, setPicking] = useState(false)
+  useEffect(() => {
+    if (pickedIds) navigate('.', { replace: true, state: null })
+  }, [])
 
   if (entries.length < FLASHBACK_MIN_WORDS) return <NotEnoughWords count={entries.length} />
 
-  const start = (n: number) => {
-    setSize(clampRoundSize(n, entries.length))
+  const free = (n: number) => {
+    setSession((s) => ({ id: (s?.id ?? 0) + 1, size: clampRoundSize(n, entries.length) }))
     setPicking(false)
-    setRoundId((r) => r + 1)
+  }
+  const review = () => {
+    const words = due.slice(0, MAX_REVIEW)
+    setSession((s) => ({ id: (s?.id ?? 0) + 1, size: words.length, words }))
   }
 
   return (
     <div className="page flashback">
-      {size === undefined ? (
+      {session === undefined ? (
         <FlashbackHeader entries={entries} />
       ) : (
-        <Round
-          key={roundId}
-          entries={entries}
-          size={size}
-          onAgain={() => (ask ? setPicking(true) : start(DEFAULT_ROUND_SIZE))}
-        />
+        <Round key={session.id} entries={entries} size={session.size} words={session.words} onAgain={() => setSession(undefined)} />
       )}
-      {size === undefined && !picking && (
-        <section className="flash-card box flash-start">
-          <p className="flash-clue">A short round with your own words, back in the moments you met them.</p>
-          <div className="row flash-actions">
-            <button className="btn btn-marker" onClick={() => setPicking(true)}>
-              Choose how many cards <ArrowRight size={16} />
-            </button>
-          </div>
-        </section>
-      )}
-      <SizePicker open={picking} wordCount={entries.length} onPick={start} onClose={() => setPicking(false)} />
+      {session === undefined && !picking && <StartPanel entries={entries} due={due} onReview={review} onFree={() => (ask ? setPicking(true) : free(DEFAULT_ROUND_SIZE))} />}
+      <SizePicker open={picking} wordCount={entries.length} onPick={free} onClose={() => setPicking(false)} />
+    </div>
+  )
+}
+
+/** Before a round: the words due today (spaced repetition, data/srs.ts) and free practice. */
+function StartPanel({ entries, due, onReview, onFree }: { entries: Entry[]; due: Entry[]; onReview: () => void; onFree: () => void }) {
+  const next = due.length ? undefined : nextDue(entries)
+  return (
+    <div className="flash-start-grid">
+      <section className={`flash-card box flash-start flash-due${due.length ? '' : ' is-clear'}`}>
+        {due.length ? (
+          <>
+            <span className="label-sm">Due today</span>
+            <p className="flash-due-count">
+              <b>{due.length}</b> {due.length === 1 ? 'word is' : 'words are'} ready for a review
+            </p>
+            <p className="faint small">
+              Each word comes back just before you'd forget it: sooner when it slips, later each time you remember it.
+            </p>
+            <div className="flash-due-words">
+              {due.slice(0, 8).map((e) => (
+                <span key={e.id} className="chip word-font">
+                  {e.word}
+                </span>
+              ))}
+              {due.length > 8 && <span className="faint small">+{due.length - 8} more</span>}
+            </div>
+            <div className="row flash-actions">
+              <button className="btn btn-marker" onClick={onReview}>
+                Review {Math.min(due.length, MAX_REVIEW)} {due.length > MAX_REVIEW ? `of ${due.length}` : ''} <ArrowRight size={16} />
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="label-sm">All caught up</span>
+            <p className="flash-due-count">Nothing to review today.</p>
+            {next && (
+              <p className="faint small">
+                Next: {next.count} {next.count === 1 ? 'word' : 'words'} {whenLabel(next.at)}.
+              </p>
+            )}
+          </>
+        )}
+      </section>
+      <section className="flash-card box flash-start">
+        <span className="label-sm">Free practice</span>
+        <p className="flash-clue">A short round with any of your words, back in the moments you met them.</p>
+        <div className="row flash-actions">
+          <button className="btn" onClick={onFree}>
+            Start a round <ArrowRight size={16} />
+          </button>
+        </div>
+      </section>
     </div>
   )
 }
@@ -176,9 +238,9 @@ interface Answer {
   correct?: boolean
 }
 
-function Round({ entries, size, onAgain }: { entries: Entry[]; size: number; onAgain: () => void }) {
+function Round({ entries, size, words, onAgain }: { entries: Entry[]; size: number; words?: Entry[]; onAgain: () => void }) {
   // The round is fixed when it starts; later edits (a mastery change) don't reshuffle it.
-  const [cards] = useState(() => buildRound(entries, size))
+  const [cards] = useState(() => (words ? buildRoundOf(words, entries) : buildRound(entries, size)))
   const [queue, setQueue] = useState(cards)
   const [index, setIndex] = useState(0)
   const [answer, setAnswer] = useState<Answer>()

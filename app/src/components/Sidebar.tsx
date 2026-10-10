@@ -1,13 +1,14 @@
 import { motion } from 'motion/react'
 import { BookOpen, History, Orbit, Plus, Search } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAppState } from '../app/state'
 import { bandOfWord, K_BANDS, useLevelsReady } from '../data/levels'
 import { MASTERY_LABELS, MASTERY_LEVELS, type Entry } from '../data/model'
 import { useIsMobile } from './MobileBar'
 import { SidebarAccount } from './SyncStatus'
 import { allSources, type Filters } from '../data/notebook'
+import { dueEntries } from '../data/srs'
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 export const MOD_KEY = isMac ? '⌘' : 'Ctrl'
@@ -34,6 +35,7 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
     return { band, mastery }
   }, [entries, levelsReady])
   const sources = useMemo(() => allSources(entries).slice(0, 8), [entries])
+  const due = useMemo(() => dueEntries(entries).length, [entries])
 
   // Picking a filter anywhere takes you to the notebook.
   const toggle = <K extends keyof Filters>(key: K, value: Filters[K]) => {
@@ -45,10 +47,10 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
   return (
     // A closed drawer is off-screen; `inert` keeps keyboard and screen readers out of it.
     <aside id="sidebar" className={open ? 'sidebar open' : 'sidebar'} inert={mobile && !open}>
-      <div className="brand">
+      <Link to="/" className="brand" onClick={onNavigate} aria-label="Vocabook: my notebook">
         <img className="brand-logo" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={34} height={34} />
         Vocabook
-      </div>
+      </Link>
 
       <button
         className="btn btn-marker add-btn"
@@ -62,8 +64,8 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
 
       <nav className="nav">
         <NavItem to="/" icon={<BookOpen size={17} />} label="Notebook" count={entries.length} onClick={onNavigate} />
-        <NavItem to="/flashback" icon={<History size={17} />} label="Flashback" onClick={onNavigate} />
-        <NavItem to="/pool" end={false} icon={<Orbit size={17} />} label="Word pool" onClick={onNavigate} />
+        <NavItem to="/flashback" icon={<History size={17} />} label="Flashback" count={due || undefined} countLabel={due ? `${due} to review today` : undefined} onClick={onNavigate} />
+        <NavItem to="/rings" end={false} icon={<Orbit size={17} />} label="Word rings" onClick={onNavigate} />
         <button
           className="nav-item nav-btn"
           onClick={() => {
@@ -122,7 +124,7 @@ export function Sidebar({ entries, open = false, onNavigate }: { entries: Entry[
   )
 }
 
-function NavItem({ to, end = true, icon, label, count, onClick }: { to: string; end?: boolean; icon: ReactNode; label: string; count?: number; onClick?: () => void }) {
+function NavItem({ to, end = true, icon, label, count, countLabel, onClick }: { to: string; end?: boolean; icon: ReactNode; label: string; count?: number; countLabel?: string; onClick?: () => void }) {
   return (
     <NavLink to={to} end={end} className="nav-item" onClick={onClick}>
       {({ isActive }) => (
@@ -130,7 +132,11 @@ function NavItem({ to, end = true, icon, label, count, onClick }: { to: string; 
           {isActive && <motion.span layoutId="nav-active" className="nav-active" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
           <span className="row">{icon}</span>
           <span>{label}</span>
-          {count !== undefined && <span className="nav-count">{count}</span>}
+          {count !== undefined && (
+            <span className={countLabel ? 'nav-count due-count' : 'nav-count'} title={countLabel}>
+              {count}
+            </span>
+          )}
         </>
       )}
     </NavLink>

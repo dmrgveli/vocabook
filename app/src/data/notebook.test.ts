@@ -116,3 +116,30 @@ describe("lineSentence", () => {
     expect(lineSentence(entry("grit"))).toBeUndefined();
   });
 });
+
+describe('takeFirst', () => {
+  it('cuts across groups and keeps each group total', async () => {
+    const { takeFirst } = await import('./notebook')
+    const g = (key: string, n: number) => ({ key, entries: Array.from({ length: n }, (_, i) => entry(`${key}${i}`)) })
+    const out = takeFirst([g('a', 3), g('b', 4), g('c', 2)], 5)
+    expect(out.map((x) => [x.key, x.entries.length, x.total])).toEqual([
+      ['a', 3, 3],
+      ['b', 2, 4],
+    ])
+  })
+})
+
+describe('searchEntry', () => {
+  it('finds a word by what it means and where you met it, best match first', async () => {
+    const { searchEntry, rankBySearch } = await import('./notebook')
+    const meanings = [{ partOfSpeech: 'verb', definitions: [{ definition: 'To grow or develop well', example: 'Plants thrive here.' }] }]
+    const thrive = entry('thrive', { enrichment: enrichment({ meanings, synonyms: ['flourish'] }), translation: 'gelişmek' }, 'Heard it on a podcast')
+    const grow = entry('grow')
+    expect(searchEntry(thrive, 'develop')).toEqual({ score: 40, field: 'a definition' })
+    expect(searchEntry(thrive, 'GELİŞ')?.field).toBe('translation')
+    expect(searchEntry(thrive, 'podcast')?.field).toBe('where you met it')
+    expect(searchEntry(thrive, 'flour')?.field).toBe('related words')
+    expect(searchEntry(grow, 'develop')).toBeUndefined()
+    expect(rankBySearch([thrive, grow], 'gro').map((e) => e.word)).toEqual(['grow', 'thrive'])
+  })
+})

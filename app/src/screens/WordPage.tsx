@@ -12,6 +12,8 @@ import { Dictionary } from './word/DictionaryPanels'
 import { BackLink } from './word/Panel'
 import { Encounters, formatDate, Notes, type Update } from './word/PersonalPanels'
 import { VideosDrawer, WordHeading } from './word/WordHeading'
+import { SectionNav } from './word/SectionNav'
+import { scheduleOf, whenLabel } from '../data/srs'
 
 // A word in the notebook. The parts live in ./word/: the heading, the dictionary panels
 // (shared with look-ups in LookUpPage) and the personal panels.
@@ -107,10 +109,13 @@ function WordPageContent({ entry }: { entry: Entry }) {
           <span className="label-sm">How well do you know it?</span>
           <MasteryControl value={entry.mastery} onChange={(m) => update((x) => ({ ...x, mastery: m }))} />
           <span className="faint">Added {formatDate(entry.createdAt)}</span>
+          <span className="faint" title="Spaced repetition: when Flashback will bring it back">Next review {whenLabel(scheduleOf(entry).due)}</span>
         </div>
       </header>
 
       <VideosDrawer word={entry.word} open={videosOpen} />
+
+      <SectionNav word={entry.word} />
 
       <div className="word-columns">
         <div className="word-col">

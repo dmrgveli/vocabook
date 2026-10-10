@@ -334,6 +334,21 @@ export interface PastRound {
 const SAME_ROUND_MS = 60_000
 const RESULT_BY_LABEL = new Map(Object.entries(RESULT_LABEL).map(([k, v]) => [`Flashback · ${v}`, k as RoundResult]))
 
+/** A word's Flashback results, oldest first (for the review schedule in data/srs.ts). */
+export function practiceResults(entry: Entry): { at: number; result: RoundResult }[] {
+  return alive(entry.encounters)
+    .filter(isPractice)
+    .map((enc) => ({ at: Date.parse(enc.createdAt), result: RESULT_BY_LABEL.get(enc.source) ?? ('still-learning' as RoundResult) }))
+    .sort((a, b) => a.at - b.at)
+}
+
+/** Cards for chosen words (due reviews, a selection from the notebook) instead of a random pick. */
+export function buildRoundOf(words: Entry[], all: Entry[], random: Random = Math.random): FlashCard[] {
+  const order: CardKind[] = ['moment', 'phrase', 'meaning', 'word']
+  const start = Math.floor(random() * order.length)
+  return shuffle(words, random).map((e, i) => cardFor(e, all, order[(start + i) % order.length], random))
+}
+
 /**
  * Past rounds, newest first, rebuilt from the records on each word's timeline (so they
  * sync like everything else). Older rounds may look smaller: each word keeps only its

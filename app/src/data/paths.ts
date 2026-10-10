@@ -24,7 +24,7 @@ export function parseWordParam(param: string): { id: string } | { word: string }
   return { word: normalizeWord(param.replace(/\+/g, ' ')) }
 }
 
-/** The word pool, optionally around a word: #/pool, #/pool/thrive. */
-export function poolPath(word?: string): string {
-  return word ? `/pool/${encodeWord(word)}` : '/pool'
+/** Word rings, optionally around a word: #/rings, #/rings/thrive. (Old #/pool links redirect.) */
+export function ringsPath(word?: string): string {
+  return word ? `/rings/${encodeWord(word)}` : '/rings'
 }

@@ -14,24 +14,62 @@ export function hasActiveFilters(f: Filters): boolean {
   return Boolean(f.query.trim() || f.band || f.mastery || f.source)
 }
 
-function matchesQuery(entry: Entry, q: string, qTr: string): boolean {
-  if (entry.word.includes(q)) return true
-  // The translation is in the user's native language (Turkish): compare with Turkish casing rules.
-  if (entry.translation?.toLocaleLowerCase('tr').includes(qTr)) return true
-  if (entry.ownSentence?.toLowerCase().includes(q)) return true
-  return alive(entry.notes).some((n) => n.text.toLowerCase().includes(q) || n.text.toLocaleLowerCase('tr').includes(qTr))
+/** Where a search found the word, for a small hint next to it ("in a definition"). */
+export type SearchField = 'word' | 'translation' | 'my sentence' | 'a note' | 'where you met it' | 'a definition' | 'an example' | 'related words' | 'a phrase'
+
+export interface SearchHit {
+  score: number
+  field: SearchField
+}
+
+/**
+ * Searches everything a notebook line knows about a word, best match first: the word itself
+ * (whole, start, inside), your translation, your sentence and notes, where you met it (place
+ * and sentence), its definitions and examples, related words and the phrases it's used in.
+ */
+export function searchEntry(entry: Entry, query: string): SearchHit | undefined {
+  const q = query.trim().toLowerCase()
+  if (!q) return undefined
+  // The translation and notes may be Turkish: compare those with Turkish casing rules too.
+  const qTr = query.trim().toLocaleLowerCase('tr')
+  const has = (text: string | undefined) => !!text && (text.toLowerCase().includes(q) || text.toLocaleLowerCase('tr').includes(qTr))
+  const w = entry.word
+  if (w === q) return { score: 100, field: 'word' }
+  if (w.startsWith(q)) return { score: 90, field: 'word' }
+  if (w.includes(q)) return { score: 80, field: 'word' }
+  if (has(entry.translation)) return { score: 70, field: 'translation' }
+  if (has(entry.ownSentence)) return { score: 60, field: 'my sentence' }
+  if (alive(entry.notes).some((n) => has(n.text))) return { score: 55, field: 'a note' }
+  if (metEncounters(entry).some((e) => has(e.source) || has(e.sentence))) return { score: 50, field: 'where you met it' }
+  const en = entry.enrichment
+  if (!en) return undefined
+  const defs = en.meanings.flatMap((m) => m.definitions)
+  if (defs.some((d) => has(d.definition))) return { score: 40, field: 'a definition' }
+  if (defs.some((d) => has(d.example)) || en.corpus?.examples.some((x) => has(`${x.before} ${x.word} ${x.after}`))) return { score: 30, field: 'an example' }
+  if ([...en.synonyms, ...en.antonyms, ...(en.corpus?.similar ?? [])].some((x) => x.toLowerCase() === q || x.toLowerCase().startsWith(q)))
+    return { score: 25, field: 'related words' }
+  if (en.corpus?.groups.some((g) => g.items.some((i) => has(i.phrase)))) return { score: 20, field: 'a phrase' }
+  return undefined
 }
 
 export function filterEntries(entries: Entry[], f: Filters): Entry[] {
-  const q = f.query.trim().toLowerCase()
-  const qTr = f.query.trim().toLocaleLowerCase('tr')
-  return entries.filter(
-    (e) =>
-      (!q || matchesQuery(e, q, qTr)) &&
-      (!f.band || bandOfWord(e.word) === f.band) &&
-      (!f.mastery || e.mastery === f.mastery) &&
-      (!f.source || metEncounters(e).some((enc) => enc.source === f.source)),
-  )
+  const q = f.query.trim()
+  const scored = entries
+    .filter(
+      (e) =>
+        (!f.band || bandOfWord(e.word) === f.band) &&
+        (!f.mastery || e.mastery === f.mastery) &&
+        (!f.source || metEncounters(e).some((enc) => enc.source === f.source)),
+    )
+    .map((e) => ({ e, hit: q ? searchEntry(e, q) : undefined }))
+  return (q ? scored.filter((x) => x.hit) : scored).map((x) => x.e)
+}
+
+/** While searching, the best matches come first (stable: ties keep the chosen sort). */
+export function rankBySearch(sorted: Entry[], query: string): Entry[] {
+  if (!query.trim()) return sorted
+  const score = new Map(sorted.map((e) => [e.id, searchEntry(e, query)?.score ?? 0]))
+  return [...sorted].sort((a, b) => score.get(b.id)! - score.get(a.id)!)
 }
 
 /** YYYY-MM-DD in local time */
@@ -185,4 +223,16 @@ export function lineSentence(entry: Entry): { text: string; mine: boolean } | un
     if (example) return { text: example, mine: false }
   }
   return undefined
+}
+
+/** The first `n` entries across the groups, keeping each group's full size for its label. */
+export function takeFirst(groups: Group[], n: number): (Group & { total: number })[] {
+  const out: (Group & { total: number })[] = []
+  let left = n
+  for (const g of groups) {
+    if (left <= 0) break
+    out.push({ key: g.key, entries: g.entries.slice(0, left), total: g.entries.length })
+    left -= g.entries.length
+  }
+  return out
 }

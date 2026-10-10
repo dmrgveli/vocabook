@@ -475,6 +475,56 @@
   margin-top: 8px;
 }
 
+/* the start screen: today's reviews (spaced repetition) next to free practice */
+.flash-start-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.flash-start-grid .flash-start {
+  margin-top: 0;
+}
+
+.flash-due-count {
+  margin: 4px 0 6px;
+  font-size: 17px;
+}
+
+.flash-due-count b {
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--marker);
+  color: var(--marker-ink);
+  font-family: var(--font-word);
+  font-size: 34px;
+  font-weight: 400;
+}
+
+.flash-due-words {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 4px;
+}
+
+.flash-due.is-clear .flash-due-count {
+  font-family: var(--font-word);
+  font-size: 26px;
+}
+
+.due-count {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--marker);
+  color: var(--marker-ink);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- summary ---------- */
 
 /* the ring fills up to the share remembered: --pct is animatable thanks to @property */

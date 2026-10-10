@@ -16,11 +16,11 @@ import { useIsMobile } from "../components/MobileBar";
 import { KBadge, SpeakButton } from "../components/ui";
 import { useEntries, useSuggestions } from "../hooks";
 import { normalizeWord } from "../data/model";
-import { lookPath, poolPath, wordPath } from "../data/paths";
+import { lookPath, ringsPath, wordPath } from "../data/paths";
 import { RING_NAMES, type PoolItem } from "../data/pool";
 import { DESKTOP, PHONE, PoolEngine, RING_VARS } from "./pool/engine";
 
-// The word pool: search a word, then travel through the words around it on three rings
+// Word rings: search a word, then travel through the words around it on three rings
 // (same meaning · explains it · used with it). Desktop: turn, tilt, hover for details,
 // click to go to a word. Phones: zoom between the rings, tap a word for details.
 
@@ -34,12 +34,12 @@ export function WordPool() {
     <div className="page pool-page">
       <header className="page-header pool-header">
         <h1 className="page-title">
-          Word <span className="marked">pool</span>
+          Word <span className="marked">rings</span>
         </h1>
         <PoolSearch
           key={word}
           initial={word ?? ""}
-          onPick={(w) => navigate(poolPath(w))}
+          onPick={(w) => navigate(ringsPath(w))}
         />
       </header>
       {word ? <PoolView word={word} /> : <PoolStart />}
@@ -74,7 +74,7 @@ function PoolSearch({
           type="search"
           value={input}
           placeholder="Search any word…"
-          aria-label="Search a word for the pool"
+          aria-label="Search a word for its rings"
           role="combobox"
           aria-expanded={open && items.length > 0}
           aria-controls="pool-suggestions"
@@ -147,7 +147,7 @@ function PoolStart() {
           <span className="label-sm">Start from one of your words</span>
           <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
             {recent.map((e) => (
-              <Link key={e.id} to={poolPath(e.word)} className="chip word-font">
+              <Link key={e.id} to={ringsPath(e.word)} className="chip word-font">
                 {e.word}
               </Link>
             ))}
@@ -262,7 +262,7 @@ function PoolView({ word }: { word: string }) {
     const r = el?.getBoundingClientRect();
     if (box && r)
       fromPoint.current = [r.left + r.width / 2 - box.left, r.bottom - box.top];
-    navigate(poolPath(item.word), { state: { from: word } });
+    navigate(ringsPath(item.word), { state: { from: word } });
   };
 
   const showCard = (item: PoolItem, el: HTMLElement) => {
@@ -307,7 +307,7 @@ function PoolView({ word }: { word: string }) {
         tabIndex={0}
         aria-label={
           mobile
-            ? `Words around “${word}”. Pinch or swipe up and down to move between the rings, swipe sideways to turn them.`
+            ? `Words around “${word}”. Pinch or use the + and − buttons to move between the rings, swipe sideways to turn them.`
             : `Words around “${word}”. Drag sideways or use the arrow keys to turn the rings, drag up and down to tilt them.`
         }
         onKeyDown={(e) => {
@@ -404,8 +404,7 @@ function PoolView({ word }: { word: string }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
             >
-              <ZoomIn size={16} /> Pinch out or swipe up: closer words are
-              inside
+              <ZoomIn size={16} /> Pinch or tap + : closer words are inside
             </motion.div>
           )}
         </AnimatePresence>

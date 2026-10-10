@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useState } from 'react'
-import { Route, Routes, useLocation } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { BackupPrompt } from '../components/BackupPrompt'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { LookUpDialog } from '../components/LookUpDialog'
@@ -15,18 +15,30 @@ import { WordPeek } from '../components/WordPeek'
 import { setWordFrequencies } from '../data/wordFrequency'
 import { useEntries } from '../hooks'
 import { Notebook } from '../screens/Notebook'
-import { Settings } from '../screens/Settings'
-import { Flashback } from '../screens/Flashback'
-import { LookUpPage } from '../screens/LookUpPage'
-import { WordPage } from '../screens/WordPage'
-import { WordPool } from '../screens/WordPool'
+
 import { useAppState } from './state'
+import { keepNotebookStored } from '../storage'
+
+// The notebook is the first screen; everything else loads when it is first opened.
+const named = <K extends string>(load: () => Promise<Record<K, React.ComponentType<any>>>, name: K) =>
+  lazy(() => load().then((m) => ({ default: m[name] })))
+const WordPage = named(() => import('../screens/WordPage'), 'WordPage')
+const LookUpPage = named(() => import('../screens/LookUpPage'), 'LookUpPage')
+const Flashback = named(() => import('../screens/Flashback'), 'Flashback')
+const Settings = named(() => import('../screens/Settings'), 'Settings')
+const WordPool = named(() => import('../screens/WordPool'), 'WordPool')
 
 export function App() {
   const entries = useEntries()
   const location = useLocation()
   const { openQuickAdd } = useAppState()
   const [menuOpen, setMenuOpen] = useState(false)
+  const hasWords = Boolean(entries?.length)
+
+  // Once there is something to lose, ask the browser to keep it (silently; see storage.ts).
+  useEffect(() => {
+    if (hasWords) void keepNotebookStored()
+  }, [hasWords])
 
   // Corpus frequencies already stored in words feed the level badges' tips.
   useEffect(() => {
@@ -68,8 +80,8 @@ export function App() {
           {entries && (
             <AnimatePresence mode="wait">
               <motion.div
-                // Settings sections and word pool words switch inside the page, without a page transition.
-                key={location.pathname.startsWith('/settings') ? '/settings' : location.pathname.startsWith('/pool') ? '/pool' : location.pathname}
+                // Settings sections and Word rings words switch inside the page, without a page transition.
+                key={location.pathname.startsWith('/settings') ? '/settings' : location.pathname.startsWith('/rings') ? '/rings' : location.pathname}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
@@ -79,14 +91,17 @@ export function App() {
                   resetKey={location.pathname}
                   fallback={<p className="page muted">Something went wrong on this page. Try going back to your notebook.</p>}
                 >
+                  <Suspense fallback={<div className="page page-loading" aria-busy="true" />}>
                   <Routes location={location}>
                     <Route path="/word/:param" element={<WordPage />} />
                     <Route path="/look/:param" element={<LookUpPage />} />
                     <Route path="/flashback" element={<Flashback entries={entries} />} />
-                    <Route path="/pool/:param?" element={<WordPool />} />
+                    <Route path="/rings/:param?" element={<WordPool />} />
+                    <Route path="/pool/:param?" element={<PoolRedirect />} />
                     <Route path="/settings/:section?" element={<Settings entries={entries} />} />
                     <Route path="*" element={<Notebook entries={entries} />} />
                   </Routes>
+                  </Suspense>
                 </ErrorBoundary>
               </motion.div>
             </AnimatePresence>
@@ -104,4 +119,10 @@ export function App() {
       <UpdateBanner />
     </>
   )
+}
+
+/** The Word rings used to be called the word pool: #/pool/thrive → #/rings/thrive. */
+function PoolRedirect() {
+  const { param } = useParams()
+  return <Navigate to={param ? `/rings/${param}` : '/rings'} replace />
 }
